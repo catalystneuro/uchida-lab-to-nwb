@@ -1,13 +1,20 @@
 # Conversion Notes — Uchida Lab (Hannah's photometry + pose dataset)
 
 ## Experiment Overview
-Fiber photometry + 3D pose tracking + multi-camera video during lone-animal
-behavior (condition folder named `Lone_data`, path on acquisition rig contained
-`M1-M7_photometry/Alone`). 30-minute sessions per subject per day, 2 days.
-Experimenter: Hannah. Lab: Uchida (Harvard).
+**Project**: SFARI Autism Rat Models Consortium (ARC)
+**Lab**: Uchida Lab — PI: Prof. Naoshige Uchida, Harvard University
+**Point person**: Hannah Phillips
+**Study**: Social behavior and observational fear learning in autism rat models
+**Species**: Rats (Rattus norvegicus — strain/model TBD, SFARI ARC autism models)
+**GitHub repo**: https://github.com/catalystneuro/uchida-lab-to-nwb
+**DANDI**: Embargo mode → public on paper publication
+**Spyglass compatibility**: Required (Flatiron RSE team integration)
+**Sync system**: pCampi (LabVIEW) → H5 file with TTL pulses
 
-> TO CONFIRM with user: task description, brain region(s) recorded, indicator
-> (GCaMP?), subject species, whether social data also exists, publication/DOI.
+Data in share: fiber photometry + 3D pose tracking + 6-camera video during
+lone-animal sessions ("Lone_data", path on rig: `M1-M7_photometry/Alone`).
+30-minute sessions. 3 subjects × 2 days = 6 sessions. Social-condition data
+likely exists elsewhere (same subjects, separate share).
 
 ## Data Source
 - Local path: `H:\Uchida-CN-data-share\Hannah_data\M4-M7\Lone_data\`
