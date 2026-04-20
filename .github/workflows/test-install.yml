@@ -1,0 +1,21 @@
+name: Installation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 1 * *"  # Monthly
+
+jobs:
+  run:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install uv && uv pip install --system -e ".[phillips_2025]"
+      - run: python -c "import uchida_lab_to_nwb"

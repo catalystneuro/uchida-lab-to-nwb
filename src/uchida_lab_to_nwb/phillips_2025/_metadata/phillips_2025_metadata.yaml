@@ -1,0 +1,34 @@
+NWBFile:
+  session_description: >
+    Freely behaving rat (lone condition) recorded with 6-camera multi-view video,
+    3D pose estimation (DANNCE), and fiber photometry (Doric BBC300).
+    Part of the SFARI Autism Rat Models Consortium (ARC) study of social behavior
+    and observational fear learning.
+  experiment_description: >
+    The Uchida lab studies social behavior and observational fear learning in
+    autism rat models as part of the SFARI Autism Rat Models Consortium (ARC).
+    Behavioral data includes multi-camera video with 3D pose estimation via
+    DANNCE (social-DANNCE), and fiber photometry of neural activity using
+    Doric BBC300 hardware. Synchronization is managed by pCampi (LabVIEW).
+  institution: Harvard University
+  lab: Uchida
+  experimenter:
+    - Phillips, Hannah
+  keywords:
+    - fiber photometry
+    - pose estimation
+    - DANNCE
+    - social behavior
+    - observational fear learning
+    - rat
+    - autism
+    - SFARI ARC
+  # related_publications: []  # TODO: add DOI when available
+
+Subject:
+  species: Rattus norvegicus
+  # strain: TBD  # TODO: confirm rat strain/model with Hannah
+  # sex: TBD     # TODO: fill in subject_metadata.yaml per-subject
+  description: >
+    Autism rat model from the SFARI Autism Rat Models Consortium.
+    Strain and genotype TBD — see hannah_metadata_request.md.

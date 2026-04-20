@@ -1,0 +1,30 @@
+# Per-subject metadata for the Phillips 2025 dataset
+# Fill in once Hannah responds to the metadata request (hannah_metadata_request.md)
+# All fields should follow NWB conventions:
+#   species: Latin binomial (Rattus norvegicus)
+#   sex: "M", "F", "U", or "O"
+#   age: ISO 8601 duration, e.g. "P90D" (90 days)  — or provide date_of_birth
+#   weight: "numeric unit", e.g. "0.350 kg"
+#   strain: e.g. "Sprague-Dawley", "Shank3 KO", etc.
+
+M4:
+  subject_id: M4
+  species: Rattus norvegicus
+  sex: U         # TBD
+  # date_of_birth: YYYY-MM-DD  # TBD
+  # strain: TBD
+  # genotype: TBD
+  # weight: TBD
+  description: Autism rat model M4 (SFARI ARC). Metadata TBD.
+
+M5:
+  subject_id: M5
+  species: Rattus norvegicus
+  sex: U
+  description: Autism rat model M5 (SFARI ARC). Metadata TBD.
+
+M7:
+  subject_id: M7
+  species: Rattus norvegicus
+  sex: U
+  description: Autism rat model M7 (SFARI ARC). Metadata TBD.
