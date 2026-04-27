@@ -1,4 +1,5 @@
 """Convert a single Uchida Lab (Phillips 2025) session to NWB."""
+
 import re
 from datetime import datetime
 from pathlib import Path
@@ -7,7 +8,9 @@ from zoneinfo import ZoneInfo
 
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 
-from uchida_lab_to_nwb.phillips_2025.phillips_2025_nwbconverter import Phillips2025NWBConverter
+from uchida_lab_to_nwb.phillips_2025.phillips_2025_nwbconverter import (
+    Phillips2025NWBConverter,
+)
 
 # Harvard is in the Eastern timezone
 _TIMEZONE = ZoneInfo("America/New_York")
@@ -81,7 +84,9 @@ def session_to_nwb(
 
     nwbfile_path = output_dir_path / f"sub-{subject_id}_ses-{session_id}.nwb"
     if nwbfile_path.exists() and not overwrite and not stub_test:
-        print(f"Skipping {nwbfile_path} (already exists). Pass overwrite=True to overwrite.")
+        print(
+            f"Skipping {nwbfile_path} (already exists). Pass overwrite=True to overwrite."
+        )
         return
 
     # ── Build source_data ────────────────────────────────────────────────────
@@ -110,6 +115,7 @@ def session_to_nwb(
             file_path=str(dannce_mat),
             frametimes_file_path=str(frametimes_npy),
             subject_name=subject_id,
+            animal_index=0,
         )
         conversion_options["DANNCE"] = dict(stub_test=stub_test)
 
@@ -165,14 +171,16 @@ def session_to_nwb(
 if __name__ == "__main__":
     import yaml
 
-    _subject_metadata_path = Path(__file__).parent / "_metadata" / "subject_metadata.yaml"
+    _subject_metadata_path = (
+        Path(__file__).parent / "_metadata" / "subject_metadata.yaml"
+    )
     with open(_subject_metadata_path) as f:
         _all_subjects = yaml.safe_load(f)
     _subject_meta = _all_subjects.get("M4", {})
 
     session_to_nwb(
         session_dir_path="H:/Uchida-CN-data-share/Hannah_data/M4-M7/Lone_data/day_1/M4",
-        output_dir_path="C:/Users/amtra/CatalystNeuro/nwb_output/uchida",
+        output_dir_path="H:/uchida-nwbfiles",
         subject_metadata=_subject_meta,
         stub_test=True,
         verbose=True,

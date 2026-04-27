@@ -1,15 +1,14 @@
 """Primary NWBConverter class for the Uchida Lab phillips_2025 conversion."""
-import numpy as np
-from scipy.interpolate import interp1d
 
+import numpy as np
 from neuroconv import NWBConverter
-from neuroconv.datainterfaces import ExternalVideoInterface
+from neuroconv.datainterfaces import ExternalVideoInterface, SDANNCEInterface
+from scipy.interpolate import interp1d
 
 from uchida_lab_to_nwb.phillips_2025.interfaces import (
     DoricFiberPhotometryInterface,
     DoricProcessedPhotometryInterface,
     PCampiSyncInterface,
-    SDANNCEInterface,
 )
 
 # One ExternalVideoInterface entry per camera
@@ -112,4 +111,4 @@ class Phillips2025NWBConverter(NWBConverter):
         if "DoricProcessed" in self.data_interface_objects:
             proc = self.data_interface_objects["DoricProcessed"]
             # Processed photometry has ~90,071 samples; trim to video frame count
-            proc.set_aligned_timestamps(campy_frame_times[:len(proc._timestamps)])
+            proc.set_aligned_timestamps(campy_frame_times[: len(proc._timestamps)])
