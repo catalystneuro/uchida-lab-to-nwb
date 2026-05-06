@@ -1,152 +1,246 @@
 # Fiber photometry hardware metadata for the Uchida Lab Phillips 2025 dataset.
 # Hardware: Doric BBC300 (Behavior-based Fiber Photometry Detector) with two
 # frequency-multiplexed LED excitation channels (EXC1 and EXC2) and three
-# fiber-coupled ROIs imaged on a single BFPD camera.
+# fiber-coupled ROIs imaged on a single BFPD CMOS camera.
 #
-# Fill in TODOs once Hannah responds to hannah_metadata_request.md.
+# Fields marked "# TODO ask the lab" are placeholders awaiting Hannah's response
+# to hannah_metadata_request.md.
 
 Ophys:
   FiberPhotometry:
 
-    # ── Excitation sources ────────────────────────────────────────────────────
+    # ── Device models ─────────────────────────────────────────────────────────
+    # ndx-ophys-devices DeviceModel objects — one per distinct hardware model.
+    # Two LED models because EXC1 and EXC2 have different excitation wavelengths.
+
+    ExcitationSourceModels:
+      - name: doric_led_exc1_model
+        description: >-
+          Doric BBC300 LED for EXC1 excitation channel.
+          Likely 470 nm (GCaMP) — confirm with lab.
+        manufacturer: Doric Lenses
+        source_type: LED
+        excitation_mode: one-photon
+        wavelength_range_in_nm: [470.0, 470.0]  # TODO ask the lab: confirm EXC1 center wavelength (nm)
+
+      - name: doric_led_exc2_model
+        description: >-
+          Doric BBC300 LED for EXC2 excitation channel.
+          Likely 415 nm (isosbestic for GCaMP) or 560 nm (second indicator) — confirm with lab.
+        manufacturer: Doric Lenses
+        source_type: LED
+        excitation_mode: one-photon
+        wavelength_range_in_nm: [415.0, 415.0]  # TODO ask the lab: confirm EXC2 center wavelength (nm)
+
+    PhotodetectorModels:
+      - name: doric_bfpd_model
+        description: >-
+          Doric BBC300 BFPD (Behavior-based Fiber Photometry Detector) CMOS camera.
+          Captures fluorescence from all ROIs simultaneously via frequency-multiplexed demodulation.
+        manufacturer: Doric Lenses
+        detector_type: CMOS
+        wavelength_range_in_nm: [400.0, 700.0]  # TODO ask the lab: confirm detector wavelength range (nm)
+        gain: 1.0       # TODO ask the lab: confirm camera gain setting used during recording
+        gain_unit: AU   # TODO ask the lab: confirm gain units (e.g., AU, dB, e-/ADU)
+
+    OpticalFiberModels:
+      - name: doric_optical_fiber_model
+        description: >-
+          Doric Lenses implantable optical fiber used for fiber photometry.
+          Flat-tip fiber with ceramic ferrule.
+        manufacturer: Doric Lenses
+        numerical_aperture: 0.48          # TODO ask the lab: confirm NA (common Doric: 0.37, 0.48, 0.66)
+        core_diameter_in_um: 400.0        # TODO ask the lab: confirm core diameter (µm) (common: 200, 400)
+        active_length_in_mm: 6.0          # TODO ask the lab: confirm cannula/active length (mm)
+        ferrule_name: MF1.25              # TODO ask the lab: confirm ferrule name (e.g., MF1.25, MF2.5)
+        ferrule_model: MF1.25             # TODO ask the lab: confirm ferrule model/product ID
+        ferrule_diameter_in_mm: 1.25      # TODO ask the lab: confirm ferrule OD (1.25 mm LC or 2.5 mm FC)
+
+    # ── Excitation sources (instances) ────────────────────────────────────────
     ExcitationSources:
       - name: excitation_source_EXC1
-        description: "Doric BBC300 EXC1 LED channel, modulated at 30 Hz. Excitation wavelength TBD (likely 470 nm for GCaMP or similar)."
+        description: >-
+          Doric BBC300 EXC1 LED channel, modulated at 30 Hz.
+          Excitation wavelength TBD — likely 470 nm for GCaMP.
         manufacturer: Doric Lenses
-      - name: excitation_source_EXC2
-        description: "Doric BBC300 EXC2 LED channel, modulated at 30 Hz with 16 ms phase offset relative to EXC1. Excitation wavelength TBD (likely 415 nm isosbestic or 560 nm for a second indicator)."
-        manufacturer: Doric Lenses
+        model: doric_led_exc1_model
+        power_in_W: 0.001                 # TODO ask the lab: confirm LED power at fiber tip (W); typical range 0.3–1 mW
 
-    # ── Photodetector ─────────────────────────────────────────────────────────
+      - name: excitation_source_EXC2
+        description: >-
+          Doric BBC300 EXC2 LED channel, modulated at 30 Hz with 16 ms phase offset
+          relative to EXC1. Excitation wavelength TBD — likely 415 nm (isosbestic) or 560 nm.
+        manufacturer: Doric Lenses
+        model: doric_led_exc2_model
+        power_in_W: 0.001                 # TODO ask the lab: confirm LED power at fiber tip (W)
+
+    # ── Photodetector (instance) ──────────────────────────────────────────────
     Photodetectors:
       - name: photodetector_BFPD
-        description: "Doric BBC300 BFPD (Behavior-based Fiber Photometry Detector) camera. Single camera captures fluorescence from all ROIs simultaneously via frequency-multiplexed demodulation."
+        description: >-
+          Doric BBC300 BFPD (Behavior-based Fiber Photometry Detector) CMOS camera.
+          Single camera captures fluorescence from all ROIs simultaneously.
         manufacturer: Doric Lenses
+        model: doric_bfpd_model
 
     # ── Optical fibers (one per ROI) ──────────────────────────────────────────
-    # Brain region for each ROI is TBD — see hannah_metadata_request.md.
+    # Brain region and coordinates for each ROI are TBD — see hannah_metadata_request.md.
     OpticalFibers:
       - name: optical_fiber_ROI01
-        description: "Optical fiber for ROI01. Implanted brain region TBD."
+        description: >-
+          Optical fiber implant for ROI01.
+          Brain region TBD — confirm with lab.
         manufacturer: Doric Lenses
+        model: doric_optical_fiber_model
         fiber_insertion:
-          insertion_position_ap_in_mm: 0.0   # TBD
-          insertion_position_ml_in_mm: 0.0   # TBD
-          insertion_position_dv_in_mm: 0.0   # TBD
-          position_reference: "bregma"       # TBD
-          hemisphere: "unknown"              # TBD
+          insertion_position_ap_in_mm: 0.0    # TODO ask the lab: AP coordinate from bregma (+ anterior)
+          insertion_position_ml_in_mm: 0.0    # TODO ask the lab: ML coordinate from bregma (+ right)
+          insertion_position_dv_in_mm: 0.0    # TODO ask the lab: DV depth from brain surface (+ up, so typically ≤ 0)
+          depth_in_mm: 0.0                    # TODO ask the lab: fiber insertion depth (mm) along implant axis
+          position_reference: "bregma at the cortical surface"
+          hemisphere: "unknown"               # TODO ask the lab: "left" or "right"
+          insertion_angle_yaw_in_deg: 0.0     # TODO ask the lab: yaw (0 = sagittal, rotation around DV axis)
+          insertion_angle_pitch_in_deg: 0.0   # TODO ask the lab: pitch (0 = axial, rotation around ML axis)
+          insertion_angle_roll_in_deg: 0.0    # TODO ask the lab: roll (0 = coronal, rotation around AP axis)
+
       - name: optical_fiber_ROI02
-        description: "Optical fiber for ROI02. Implanted brain region TBD."
+        description: >-
+          Optical fiber implant for ROI02.
+          Brain region TBD — confirm with lab.
         manufacturer: Doric Lenses
+        model: doric_optical_fiber_model
         fiber_insertion:
-          insertion_position_ap_in_mm: 0.0
-          insertion_position_ml_in_mm: 0.0
-          insertion_position_dv_in_mm: 0.0
-          position_reference: "bregma"
-          hemisphere: "unknown"
+          insertion_position_ap_in_mm: 0.0    # TODO ask the lab
+          insertion_position_ml_in_mm: 0.0    # TODO ask the lab
+          insertion_position_dv_in_mm: 0.0    # TODO ask the lab
+          depth_in_mm: 0.0                    # TODO ask the lab
+          position_reference: "bregma at the cortical surface"
+          hemisphere: "unknown"               # TODO ask the lab: "left" or "right"
+          insertion_angle_yaw_in_deg: 0.0     # TODO ask the lab
+          insertion_angle_pitch_in_deg: 0.0   # TODO ask the lab
+          insertion_angle_roll_in_deg: 0.0    # TODO ask the lab
+
       - name: optical_fiber_ROI03
-        description: "Optical fiber for ROI03. Implanted brain region TBD."
+        description: >-
+          Optical fiber implant for ROI03.
+          Brain region TBD — confirm with lab.
         manufacturer: Doric Lenses
+        model: doric_optical_fiber_model
         fiber_insertion:
-          insertion_position_ap_in_mm: 0.0
-          insertion_position_ml_in_mm: 0.0
-          insertion_position_dv_in_mm: 0.0
-          position_reference: "bregma"
-          hemisphere: "unknown"
+          insertion_position_ap_in_mm: 0.0    # TODO ask the lab
+          insertion_position_ml_in_mm: 0.0    # TODO ask the lab
+          insertion_position_dv_in_mm: 0.0    # TODO ask the lab
+          depth_in_mm: 0.0                    # TODO ask the lab
+          position_reference: "bregma at the cortical surface"
+          hemisphere: "unknown"               # TODO ask the lab: "left" or "right"
+          insertion_angle_yaw_in_deg: 0.0     # TODO ask the lab
+          insertion_angle_pitch_in_deg: 0.0   # TODO ask the lab
+          insertion_angle_roll_in_deg: 0.0    # TODO ask the lab
 
     # ── Indicator ─────────────────────────────────────────────────────────────
     # Identity TBD — see hannah_metadata_request.md.
     FiberPhotometryIndicators:
       - name: unknown_indicator
-        description: "Fluorescent indicator expressed in implanted brain regions. Identity TBD (e.g. GCaMP8m, dLight1.3b, GRAB-DA)."
-        label: "unknown"
+        description: >-
+          Fluorescent indicator expressed in implanted brain regions.
+          Identity TBD (e.g., GCaMP8m, dLight1.3b, GRAB-DA) — confirm with lab.
+        label: "unknown"  # TODO ask the lab: standard indicator label (e.g., GCaMP8m)
+        manufacturer: "unknown"  # TODO ask the lab: manufacturer (e.g., Addgene, Janelia)
 
     # ── FiberPhotometryTable ──────────────────────────────────────────────────
     # Row order: ROI01_EXC1, ROI01_EXC2, ROI02_EXC1, ROI02_EXC2, ROI03_EXC1, ROI03_EXC2
-    # This matches the data layout in DoricFiberPhotometryInterface.
     FiberPhotometryTable:
       name: fiber_photometry_table
-      description: "Fiber photometry channel configuration: 3 ROIs x 2 excitation channels (EXC1 and EXC2), recorded with a Doric BBC300 BFPD system."
+      description: >-
+        Fiber photometry channel configuration: 3 ROIs × 2 excitation channels
+        (EXC1 and EXC2), recorded with a Doric BBC300 BFPD system.
       rows:
         - name: "0"
-          location: "ROI01"
-          excitation_wavelength_in_nm: 0.0   # TBD (EXC1 wavelength)
-          emission_wavelength_in_nm: 0.0     # TBD
+          location: "ROI01"                   # TODO ask the lab: replace with brain region name (e.g., "NAc", "VTA")
+          excitation_wavelength_in_nm: 470.0  # TODO ask the lab: confirm EXC1 wavelength (nm)
+          emission_wavelength_in_nm: 510.0    # TODO ask the lab: confirm emission wavelength (nm) (e.g., 510 for GCaMP)
           indicator: unknown_indicator
           optical_fiber: optical_fiber_ROI01
           excitation_source: excitation_source_EXC1
           photodetector: photodetector_BFPD
         - name: "1"
-          location: "ROI01"
-          excitation_wavelength_in_nm: 0.0   # TBD (EXC2 wavelength)
-          emission_wavelength_in_nm: 0.0     # TBD
+          location: "ROI01"                   # TODO ask the lab: replace with brain region name
+          excitation_wavelength_in_nm: 415.0  # TODO ask the lab: confirm EXC2 wavelength (nm)
+          emission_wavelength_in_nm: 510.0    # TODO ask the lab: confirm emission wavelength (nm)
           indicator: unknown_indicator
           optical_fiber: optical_fiber_ROI01
           excitation_source: excitation_source_EXC2
           photodetector: photodetector_BFPD
         - name: "2"
-          location: "ROI02"
-          excitation_wavelength_in_nm: 0.0
-          emission_wavelength_in_nm: 0.0
+          location: "ROI02"                   # TODO ask the lab: replace with brain region name
+          excitation_wavelength_in_nm: 470.0  # TODO ask the lab: confirm EXC1 wavelength (nm)
+          emission_wavelength_in_nm: 510.0    # TODO ask the lab: confirm emission wavelength (nm)
           indicator: unknown_indicator
           optical_fiber: optical_fiber_ROI02
           excitation_source: excitation_source_EXC1
           photodetector: photodetector_BFPD
         - name: "3"
-          location: "ROI02"
-          excitation_wavelength_in_nm: 0.0
-          emission_wavelength_in_nm: 0.0
+          location: "ROI02"                   # TODO ask the lab: replace with brain region name
+          excitation_wavelength_in_nm: 415.0  # TODO ask the lab: confirm EXC2 wavelength (nm)
+          emission_wavelength_in_nm: 510.0    # TODO ask the lab: confirm emission wavelength (nm)
           indicator: unknown_indicator
           optical_fiber: optical_fiber_ROI02
           excitation_source: excitation_source_EXC2
           photodetector: photodetector_BFPD
         - name: "4"
-          location: "ROI03"
-          excitation_wavelength_in_nm: 0.0
-          emission_wavelength_in_nm: 0.0
+          location: "ROI03"                   # TODO ask the lab: replace with brain region name
+          excitation_wavelength_in_nm: 470.0  # TODO ask the lab: confirm EXC1 wavelength (nm)
+          emission_wavelength_in_nm: 510.0    # TODO ask the lab: confirm emission wavelength (nm)
           indicator: unknown_indicator
           optical_fiber: optical_fiber_ROI03
           excitation_source: excitation_source_EXC1
           photodetector: photodetector_BFPD
         - name: "5"
-          location: "ROI03"
-          excitation_wavelength_in_nm: 0.0
-          emission_wavelength_in_nm: 0.0
+          location: "ROI03"                   # TODO ask the lab: replace with brain region name
+          excitation_wavelength_in_nm: 415.0  # TODO ask the lab: confirm EXC2 wavelength (nm)
+          emission_wavelength_in_nm: 510.0    # TODO ask the lab: confirm emission wavelength (nm)
           indicator: unknown_indicator
           optical_fiber: optical_fiber_ROI03
           excitation_source: excitation_source_EXC2
           photodetector: photodetector_BFPD
 
     # ── FiberPhotometryResponseSeries (raw acquisition) ───────────────────────
-    # Six series, one per row in the FiberPhotometryTable.
+    # stream_name values match HDF5 paths auto-discovered by DoricFiberPhotometryInterface:
+    # DataAcquisition/<path-with-slashes-replaced-by-underscores>
     FiberPhotometryResponseSeries:
       - name: FiberPhotometry_EXC1_ROI01
-        description: "Raw demodulated fluorescence from ROI01, EXC1 channel. Stored in Doric arbitrary fluorescence units."
+        description: "Raw demodulated fluorescence from ROI01, EXC1 channel. Doric arbitrary fluorescence units."
         unit: F
+        stream_name: BBC300_ROISignals_Series0001_CAM1EXC1_ROI01
         fiber_photometry_table_region: [0]
         fiber_photometry_table_region_description: "FiberPhotometryTable row 0: ROI01, EXC1."
       - name: FiberPhotometry_EXC2_ROI01
-        description: "Raw demodulated fluorescence from ROI01, EXC2 channel. Stored in Doric arbitrary fluorescence units."
+        description: "Raw demodulated fluorescence from ROI01, EXC2 channel. Doric arbitrary fluorescence units."
         unit: F
+        stream_name: BBC300_ROISignals_Series0001_CAM1EXC2_ROI01
         fiber_photometry_table_region: [1]
         fiber_photometry_table_region_description: "FiberPhotometryTable row 1: ROI01, EXC2."
       - name: FiberPhotometry_EXC1_ROI02
-        description: "Raw demodulated fluorescence from ROI02, EXC1 channel. Stored in Doric arbitrary fluorescence units."
+        description: "Raw demodulated fluorescence from ROI02, EXC1 channel. Doric arbitrary fluorescence units."
         unit: F
+        stream_name: BBC300_ROISignals_Series0001_CAM1EXC1_ROI02
         fiber_photometry_table_region: [2]
         fiber_photometry_table_region_description: "FiberPhotometryTable row 2: ROI02, EXC1."
       - name: FiberPhotometry_EXC2_ROI02
-        description: "Raw demodulated fluorescence from ROI02, EXC2 channel. Stored in Doric arbitrary fluorescence units."
+        description: "Raw demodulated fluorescence from ROI02, EXC2 channel. Doric arbitrary fluorescence units."
         unit: F
+        stream_name: BBC300_ROISignals_Series0001_CAM1EXC2_ROI02
         fiber_photometry_table_region: [3]
         fiber_photometry_table_region_description: "FiberPhotometryTable row 3: ROI02, EXC2."
       - name: FiberPhotometry_EXC1_ROI03
-        description: "Raw demodulated fluorescence from ROI03, EXC1 channel. Stored in Doric arbitrary fluorescence units."
+        description: "Raw demodulated fluorescence from ROI03, EXC1 channel. Doric arbitrary fluorescence units."
         unit: F
+        stream_name: BBC300_ROISignals_Series0001_CAM1EXC1_ROI03
         fiber_photometry_table_region: [4]
         fiber_photometry_table_region_description: "FiberPhotometryTable row 4: ROI03, EXC1."
       - name: FiberPhotometry_EXC2_ROI03
-        description: "Raw demodulated fluorescence from ROI03, EXC2 channel. Stored in Doric arbitrary fluorescence units."
+        description: "Raw demodulated fluorescence from ROI03, EXC2 channel. Doric arbitrary fluorescence units."
         unit: F
+        stream_name: BBC300_ROISignals_Series0001_CAM1EXC2_ROI03
         fiber_photometry_table_region: [5]
         fiber_photometry_table_region_description: "FiberPhotometryTable row 5: ROI03, EXC2."

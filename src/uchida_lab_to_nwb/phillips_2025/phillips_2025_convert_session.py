@@ -99,7 +99,7 @@ def session_to_nwb(
 
     # Raw Doric photometry (always present)
     source_data["DoricPhotometry"] = dict(file_path=str(doric_file))
-    conversion_options["DoricPhotometry"] = dict(stub_test=stub_test)
+    conversion_options["DoricPhotometry"] = dict(stub_test=stub_test, timing_source="aligned_timestamps")
 
     # Processed dF/F (present when pipeline has been run)
     if processed_mat.is_file() and frametimes_npy.is_file():
@@ -148,6 +148,10 @@ def session_to_nwb(
     yaml_path = Path(__file__).parent / "_metadata" / "phillips_2025_metadata.yaml"
     editable_metadata = load_dict_from_file(yaml_path)
     metadata = dict_deep_update(metadata, editable_metadata)
+
+    # Layer 3b: fiber photometry hardware metadata
+    fp_yaml_path = Path(__file__).parent / "_metadata" / "fiber_photometry.yaml"
+    metadata = dict_deep_update(metadata, load_dict_from_file(fp_yaml_path))
 
     # Layer 4: session-specific overrides
     metadata["NWBFile"]["session_id"] = session_id
