@@ -126,7 +126,7 @@ def session_to_nwb(
             key = f"VideoCamera{cam_idx}"
             source_data[key] = dict(
                 file_paths=[str(mp4)],
-                video_name=f"Camera{cam_idx}",
+                video_name=f"VideoCamera{cam_idx}",
             )
             # ExternalVideoInterface stores video as a file path reference — no stub needed
             conversion_options[key] = dict()
