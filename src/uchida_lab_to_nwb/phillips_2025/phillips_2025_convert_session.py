@@ -1,7 +1,7 @@
 """Convert a single Uchida Lab (Phillips 2025) session to NWB."""
 
 import re
-from datetime import datetime
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import Union
 from zoneinfo import ZoneInfo
@@ -99,7 +99,7 @@ def session_to_nwb(
 
     # Raw Doric photometry (always present)
     source_data["DoricPhotometry"] = dict(file_path=str(doric_file))
-    conversion_options["DoricPhotometry"] = dict(stub_test=stub_test)
+    conversion_options["DoricPhotometry"] = dict(stub_test=stub_test, timing_source="aligned_timestamps")
 
     # Processed dF/F (present when pipeline has been run)
     if processed_mat.is_file() and frametimes_npy.is_file():
@@ -149,6 +149,10 @@ def session_to_nwb(
     editable_metadata = load_dict_from_file(yaml_path)
     metadata = dict_deep_update(metadata, editable_metadata)
 
+    # Layer 3b: fiber photometry hardware metadata
+    fp_yaml_path = Path(__file__).parent / "_metadata" / "fiber_photometry.yaml"
+    metadata = dict_deep_update(metadata, load_dict_from_file(fp_yaml_path))
+
     # Layer 4: session-specific overrides
     metadata["NWBFile"]["session_id"] = session_id
     metadata["Subject"]["subject_id"] = subject_id
@@ -156,6 +160,12 @@ def session_to_nwb(
     # Per-subject metadata from caller (species, sex, DOB, strain, etc.)
     if subject_metadata:
         metadata["Subject"] = dict_deep_update(metadata["Subject"], subject_metadata)
+
+    # Promote date_of_birth to datetime with timezone if loaded as a bare date
+    # (PyYAML parses YYYY-MM-DD as datetime.date; PyNWB Subject requires datetime)
+    dob = metadata["Subject"].get("date_of_birth")
+    if isinstance(dob, date) and not isinstance(dob, datetime):
+        metadata["Subject"]["date_of_birth"] = datetime.combine(dob, time.min).replace(tzinfo=_TIMEZONE)
 
     # ── Run conversion ───────────────────────────────────────────────────────
     converter.run_conversion(
@@ -169,13 +179,13 @@ def session_to_nwb(
 
 
 if __name__ == "__main__":
-    import yaml
-
-    _subject_metadata_path = (
-        Path(__file__).parent / "_metadata" / "subject_metadata.yaml"
+    from uchida_lab_to_nwb.phillips_2025.phillips_2025_convert_all_sessions import (
+        load_subject_metadata_from_xlsx,
     )
-    with open(_subject_metadata_path) as f:
-        _all_subjects = yaml.safe_load(f)
+
+    _all_subjects = load_subject_metadata_from_xlsx(
+        "H:/Uchida-CN-data-share/Subject metadata.xlsx"
+    )
     _subject_meta = _all_subjects.get("M4", {})
 
     session_to_nwb(

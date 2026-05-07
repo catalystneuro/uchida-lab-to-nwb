@@ -2,11 +2,14 @@
 
 import numpy as np
 from neuroconv import NWBConverter
-from neuroconv.datainterfaces import ExternalVideoInterface, SDANNCEInterface
+from neuroconv.datainterfaces import (
+    ExternalVideoInterface,
+    SDANNCEInterface,
+    DoricFiberPhotometryInterface,
+)
 from scipy.interpolate import interp1d
 
 from uchida_lab_to_nwb.phillips_2025.interfaces import (
-    DoricFiberPhotometryInterface,
     DoricProcessedPhotometryInterface,
     PCampiSyncInterface,
 )
@@ -70,7 +73,13 @@ class Phillips2025NWBConverter(NWBConverter):
         # ── Step 3 & 4: Align Doric clock to pCampi clock ────────────────────
         if "DoricPhotometry" in self.data_interface_objects:
             doric = self.data_interface_objects["DoricPhotometry"]
-            doric_times_doric = doric.get_camera_pulse_times()
+
+            # Extract Camera1 DigitalIO rising edges from the Doric clock
+            cam1_data, cam1_time = doric._load_stream_array(
+                "BBC300_Signals_Series0001_DigitalIO_Camera1"
+            )
+            edges = np.where(np.diff((cam1_data > 0.5).astype(np.int8)) > 0)[0]
+            doric_times_doric = cam1_time[edges]
 
             n = min(len(doric_times_doric), len(doric_times_pcampi))
             if n >= 2:
@@ -80,10 +89,11 @@ class Phillips2025NWBConverter(NWBConverter):
                     kind="linear",
                     fill_value="extrapolate",
                 )
+                original_timestamps = doric.get_original_timestamps()
                 doric.set_aligned_timestamps(
                     {
-                        "CAM1EXC1": doric_to_pcampi(doric._timestamps["CAM1EXC1"]),
-                        "CAM1EXC2": doric_to_pcampi(doric._timestamps["CAM1EXC2"]),
+                        name: doric_to_pcampi(ts)
+                        for name, ts in original_timestamps.items()
                     }
                 )
 

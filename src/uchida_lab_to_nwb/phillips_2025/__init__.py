@@ -1,5 +1,4 @@
 from .interfaces import (
-    DoricFiberPhotometryInterface,
     DoricProcessedPhotometryInterface,
     PCampiSyncInterface,
 )
