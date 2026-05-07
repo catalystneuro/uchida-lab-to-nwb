@@ -1,246 +1,303 @@
 # Fiber photometry hardware metadata for the Uchida Lab Phillips 2025 dataset.
 # Hardware: Doric BBC300 (Behavior-based Fiber Photometry Detector) with two
-# frequency-multiplexed LED excitation channels (EXC1 and EXC2) and three
+# frequency-multiplexed LED excitation channels (EXC1 and EXC2) and up to three
 # fiber-coupled ROIs imaged on a single BFPD CMOS camera.
 #
-# Fields marked "# TODO ask the lab" are placeholders awaiting Hannah's response
-# to hannah_metadata_request.md.
+# Confirmed by Hannah Phillips (2026-05-06):
+#   EXC1 = 568 nm (tdTomato excitation), 50 µW at fiber tip
+#   EXC2 = 473 nm (GRABDA3m excitation), 50 µW at fiber tip
+#   BBC300 CMOS camera, wavelength range 350–1100 nm, gain 0 dB (1.0×)
+#   ROI01 → NAc, ROI02 → Tail of Striatum (TS)
+#   ROI03 → purpose unknown (only 2 implants confirmed; needs clarification with lab)
+#   Indicators: GRABDA3m (dopamine sensor) + tdTomato (control fluorophore), co-injected
+#   Fiber implant hemisphere: randomized per animal (unknown in this static file)
 
 Ophys:
   FiberPhotometry:
 
     # ── Device models ─────────────────────────────────────────────────────────
-    # ndx-ophys-devices DeviceModel objects — one per distinct hardware model.
-    # Two LED models because EXC1 and EXC2 have different excitation wavelengths.
 
     ExcitationSourceModels:
       - name: doric_led_exc1_model
         description: >-
-          Doric BBC300 LED for EXC1 excitation channel.
-          Likely 470 nm (GCaMP) — confirm with lab.
+          Doric BBC300 LED for EXC1 excitation channel (568 nm). Used to excite
+          tdTomato (red control fluorophore, emission 581 nm).
         manufacturer: Doric Lenses
         source_type: LED
         excitation_mode: one-photon
-        wavelength_range_in_nm: [470.0, 470.0]  # TODO ask the lab: confirm EXC1 center wavelength (nm)
+        wavelength_range_in_nm: [ 568.0, 568.0 ]
 
       - name: doric_led_exc2_model
         description: >-
-          Doric BBC300 LED for EXC2 excitation channel.
-          Likely 415 nm (isosbestic for GCaMP) or 560 nm (second indicator) — confirm with lab.
+          Doric BBC300 LED for EXC2 excitation channel (473 nm). Used to excite
+          GRABDA3m (green dopamine sensor, emission 520 nm).
         manufacturer: Doric Lenses
         source_type: LED
         excitation_mode: one-photon
-        wavelength_range_in_nm: [415.0, 415.0]  # TODO ask the lab: confirm EXC2 center wavelength (nm)
+        wavelength_range_in_nm: [ 473.0, 473.0 ]
 
     PhotodetectorModels:
       - name: doric_bfpd_model
         description: >-
-          Doric BBC300 BFPD (Behavior-based Fiber Photometry Detector) CMOS camera.
-          Captures fluorescence from all ROIs simultaneously via frequency-multiplexed demodulation.
+          Doric BBC300 BFPD (Behavior-based Fiber Photometry Detector) CMOS
+          camera. Captures fluorescence from all ROIs simultaneously via
+          frequency-multiplexed demodulation. Wavelength range 350–1100 nm
+          (approximate). Gain: 0 dB (1.0×).
         manufacturer: Doric Lenses
         detector_type: CMOS
-        wavelength_range_in_nm: [400.0, 700.0]  # TODO ask the lab: confirm detector wavelength range (nm)
-        gain: 1.0       # TODO ask the lab: confirm camera gain setting used during recording
-        gain_unit: AU   # TODO ask the lab: confirm gain units (e.g., AU, dB, e-/ADU)
+        wavelength_range_in_nm: [ 350.0, 1100.0 ]
+        gain: 1.0 # 0 dB in linear scale
+        gain_unit: AU
 
     OpticalFiberModels:
-      - name: doric_optical_fiber_model
+      - name: doric_optical_fiber_roi01_model
         description: >-
-          Doric Lenses implantable optical fiber used for fiber photometry.
-          Flat-tip fiber with ceramic ferrule.
+          Doric Lenses implantable optical fiber for ROI01 (NAc). Part number:
+          MFC_400/430-0.66_8.5mm_MF2.5_FLT. Flat-tip fiber with 2.5 mm ceramic
+          ferrule (MF2.5), active length 8.5 mm.
         manufacturer: Doric Lenses
-        numerical_aperture: 0.48          # TODO ask the lab: confirm NA (common Doric: 0.37, 0.48, 0.66)
-        core_diameter_in_um: 400.0        # TODO ask the lab: confirm core diameter (µm) (common: 200, 400)
-        active_length_in_mm: 6.0          # TODO ask the lab: confirm cannula/active length (mm)
-        ferrule_name: MF1.25              # TODO ask the lab: confirm ferrule name (e.g., MF1.25, MF2.5)
-        ferrule_model: MF1.25             # TODO ask the lab: confirm ferrule model/product ID
-        ferrule_diameter_in_mm: 1.25      # TODO ask the lab: confirm ferrule OD (1.25 mm LC or 2.5 mm FC)
+        numerical_aperture: 0.66
+        core_diameter_in_um: 400.0
+        active_length_in_mm: 8.5
+        ferrule_name: MF2.5
+        ferrule_model: MFC_400/430-0.66_8.5mm_MF2.5_FLT
+        ferrule_diameter_in_mm: 2.5
 
-    # ── Excitation sources (instances) ────────────────────────────────────────
+      - name: doric_optical_fiber_roi02_model
+        description: >-
+          Doric Lenses implantable optical fiber for ROI02 (TS). Part number:
+          MFC_400/430-0.66_7.5mm_MF2.5_FLT. Flat-tip fiber with 2.5 mm ceramic
+          ferrule (MF2.5), active length 7.5 mm.
+        manufacturer: Doric Lenses
+        numerical_aperture: 0.66
+        core_diameter_in_um: 400.0
+        active_length_in_mm: 7.5
+        ferrule_name: MF2.5
+        ferrule_model: MFC_400/430-0.66_7.5mm_MF2.5_FLT
+        ferrule_diameter_in_mm: 2.5
+
+    # ── Excitation source instances ───────────────────────────────────────────
+
     ExcitationSources:
       - name: excitation_source_EXC1
         description: >-
-          Doric BBC300 EXC1 LED channel, modulated at 30 Hz.
-          Excitation wavelength TBD — likely 470 nm for GCaMP.
+          Doric BBC300 EXC1 LED (568 nm), modulated at 30 Hz. Excites tdTomato
+          (red control fluorophore).
         manufacturer: Doric Lenses
         model: doric_led_exc1_model
-        power_in_W: 0.001                 # TODO ask the lab: confirm LED power at fiber tip (W); typical range 0.3–1 mW
+        power_in_W: 0.00005 # 50 µW at fiber tip
 
       - name: excitation_source_EXC2
         description: >-
-          Doric BBC300 EXC2 LED channel, modulated at 30 Hz with 16 ms phase offset
-          relative to EXC1. Excitation wavelength TBD — likely 415 nm (isosbestic) or 560 nm.
+          Doric BBC300 EXC2 LED (473 nm), modulated at 30 Hz with 16 ms phase
+          offset relative to EXC1. Excites GRABDA3m (green dopamine sensor).
         manufacturer: Doric Lenses
         model: doric_led_exc2_model
-        power_in_W: 0.001                 # TODO ask the lab: confirm LED power at fiber tip (W)
+        power_in_W: 0.00005 # 50 µW at fiber tip
 
-    # ── Photodetector (instance) ──────────────────────────────────────────────
+    # ── Photodetector instance ────────────────────────────────────────────────
+
     Photodetectors:
       - name: photodetector_BFPD
         description: >-
-          Doric BBC300 BFPD (Behavior-based Fiber Photometry Detector) CMOS camera.
-          Single camera captures fluorescence from all ROIs simultaneously.
+          Doric BBC300 BFPD (Behavior-based Fiber Photometry Detector) CMOS
+          camera. Single camera captures fluorescence from all ROIs
+          simultaneously.
         manufacturer: Doric Lenses
         model: doric_bfpd_model
 
-    # ── Optical fibers (one per ROI) ──────────────────────────────────────────
-    # Brain region and coordinates for each ROI are TBD — see hannah_metadata_request.md.
+    # ── Optical fiber implants ────────────────────────────────────────────────
+    # Hemisphere is randomized per animal and unknown in this static file.
+    # AP/ML coordinates are absolute distances from bregma (AP = anterior,
+    # ML magnitude confirmed; sign depends on hemisphere).
+
     OpticalFibers:
       - name: optical_fiber_ROI01
         description: >-
-          Optical fiber implant for ROI01.
-          Brain region TBD — confirm with lab.
+          Optical fiber implant for ROI01: Nucleus Accumbens (NAc). AP ±1.15 mm
+          from bregma, ML ±2.2 mm, DV −6.3 mm from brain surface. Hemisphere
+          randomized per animal (unknown in this file).
         manufacturer: Doric Lenses
-        model: doric_optical_fiber_model
+        model: doric_optical_fiber_roi01_model
         fiber_insertion:
-          insertion_position_ap_in_mm: 0.0    # TODO ask the lab: AP coordinate from bregma (+ anterior)
-          insertion_position_ml_in_mm: 0.0    # TODO ask the lab: ML coordinate from bregma (+ right)
-          insertion_position_dv_in_mm: 0.0    # TODO ask the lab: DV depth from brain surface (+ up, so typically ≤ 0)
-          depth_in_mm: 0.0                    # TODO ask the lab: fiber insertion depth (mm) along implant axis
+          insertion_position_ap_in_mm: 1.15
+          insertion_position_ml_in_mm: 2.2
+          insertion_position_dv_in_mm: -6.3
+          depth_in_mm: 6.3
           position_reference: "bregma at the cortical surface"
-          hemisphere: "unknown"               # TODO ask the lab: "left" or "right"
-          insertion_angle_yaw_in_deg: 0.0     # TODO ask the lab: yaw (0 = sagittal, rotation around DV axis)
-          insertion_angle_pitch_in_deg: 0.0   # TODO ask the lab: pitch (0 = axial, rotation around ML axis)
-          insertion_angle_roll_in_deg: 0.0    # TODO ask the lab: roll (0 = coronal, rotation around AP axis)
+          hemisphere: "unknown" # randomized per animal
 
       - name: optical_fiber_ROI02
         description: >-
-          Optical fiber implant for ROI02.
-          Brain region TBD — confirm with lab.
+          Optical fiber implant for ROI02: Tail of the Striatum (TS). AP ±3.15
+          mm from bregma, ML ±5.2 mm, DV −4.5 mm from brain surface. Hemisphere
+          randomized per animal (unknown in this file).
         manufacturer: Doric Lenses
-        model: doric_optical_fiber_model
+        model: doric_optical_fiber_roi02_model
         fiber_insertion:
-          insertion_position_ap_in_mm: 0.0    # TODO ask the lab
-          insertion_position_ml_in_mm: 0.0    # TODO ask the lab
-          insertion_position_dv_in_mm: 0.0    # TODO ask the lab
-          depth_in_mm: 0.0                    # TODO ask the lab
+          insertion_position_ap_in_mm: 3.15
+          insertion_position_ml_in_mm: 5.2
+          insertion_position_dv_in_mm: -4.5
+          depth_in_mm: 4.5
           position_reference: "bregma at the cortical surface"
-          hemisphere: "unknown"               # TODO ask the lab: "left" or "right"
-          insertion_angle_yaw_in_deg: 0.0     # TODO ask the lab
-          insertion_angle_pitch_in_deg: 0.0   # TODO ask the lab
-          insertion_angle_roll_in_deg: 0.0    # TODO ask the lab
+          hemisphere: "unknown" # randomized per animal
+          insertion_angle_yaw_in_deg: 0.0
+          insertion_angle_pitch_in_deg: 0.0
+          insertion_angle_roll_in_deg: 0.0
 
       - name: optical_fiber_ROI03
         description: >-
-          Optical fiber implant for ROI03.
-          Brain region TBD — confirm with lab.
+          Optical fiber for ROI03. Purpose unknown — Doric file contains 3 ROI
+          signals per excitation channel but only 2 fiber implants (NAc and TS)
+          are confirmed. Coordinates and brain region TBD pending clarification
+          with Hannah Phillips.
         manufacturer: Doric Lenses
-        model: doric_optical_fiber_model
+        model: doric_optical_fiber_roi01_model # placeholder model
         fiber_insertion:
-          insertion_position_ap_in_mm: 0.0    # TODO ask the lab
-          insertion_position_ml_in_mm: 0.0    # TODO ask the lab
-          insertion_position_dv_in_mm: 0.0    # TODO ask the lab
-          depth_in_mm: 0.0                    # TODO ask the lab
+          insertion_position_ap_in_mm: 0.0 # TODO: unknown
+          insertion_position_ml_in_mm: 0.0 # TODO: unknown
+          insertion_position_dv_in_mm: 0.0 # TODO: unknown
+          depth_in_mm: 0.0
           position_reference: "bregma at the cortical surface"
-          hemisphere: "unknown"               # TODO ask the lab: "left" or "right"
-          insertion_angle_yaw_in_deg: 0.0     # TODO ask the lab
-          insertion_angle_pitch_in_deg: 0.0   # TODO ask the lab
-          insertion_angle_roll_in_deg: 0.0    # TODO ask the lab
+          hemisphere: "unknown"
+          insertion_angle_yaw_in_deg: 0.0
+          insertion_angle_pitch_in_deg: 0.0
+          insertion_angle_roll_in_deg: 0.0
 
-    # ── Indicator ─────────────────────────────────────────────────────────────
-    # Identity TBD — see hannah_metadata_request.md.
+    # ── Fluorescent indicators ────────────────────────────────────────────────
+    # GRABDA3m and tdTomato are co-injected at both ROI sites (NAc and TS).
+
     FiberPhotometryIndicators:
+      - name: GRABDA3m
+        description: >-
+          GRABDA3m (DA3.3) — genetically encoded green fluorescent dopamine
+          sensor. Expressed via AAV9-hSyn-DA3m (DA3.3) from WZ Biosciences
+          (≥1×10¹³ vg/mL). Co-injected with tdTomato at NAc (ROI01) and TS
+          (ROI02). Excitation: 473 nm (EXC2). Emission peak: 520 nm.
+        label: GRABDA3m
+        manufacturer: WZ Biosciences
+
+      - name: tdTomato
+        description: >-
+          tdTomato — red fluorescent protein used as a control fluorophore.
+          Expressed via AAV5-CAG-tdTomato from Addgene (≥5×10¹² vg/mL, 1:10
+          dilution). Co-injected with GRABDA3m at NAc (ROI01) and TS (ROI02).
+          Excitation: 568 nm (EXC1). Emission peak: 581 nm.
+        label: tdTomato
+        manufacturer: Addgene
+
       - name: unknown_indicator
         description: >-
-          Fluorescent indicator expressed in implanted brain regions.
-          Identity TBD (e.g., GCaMP8m, dLight1.3b, GRAB-DA) — confirm with lab.
-        label: "unknown"  # TODO ask the lab: standard indicator label (e.g., GCaMP8m)
-        manufacturer: "unknown"  # TODO ask the lab: manufacturer (e.g., Addgene, Janelia)
+          Indicator for ROI03. Unknown — only 2 fiber implants confirmed (NAc +
+          TS); purpose of ROI03 signals pending clarification with Hannah
+          Phillips.
+        label: unknown
+        manufacturer: unknown
 
     # ── FiberPhotometryTable ──────────────────────────────────────────────────
-    # Row order: ROI01_EXC1, ROI01_EXC2, ROI02_EXC1, ROI02_EXC2, ROI03_EXC1, ROI03_EXC2
+    # Row layout: ROI × EXC channel.
+    # EXC1 (568 nm) → tdTomato (emission 581 nm)
+    # EXC2 (473 nm) → GRABDA3m (emission 520 nm)
+
     FiberPhotometryTable:
       name: fiber_photometry_table
       description: >-
-        Fiber photometry channel configuration: 3 ROIs × 2 excitation channels
-        (EXC1 and EXC2), recorded with a Doric BBC300 BFPD system.
+        Fiber photometry channel configuration: 3 ROIs × 2 excitation channels.
+        ROI01 = NAc, ROI02 = Tail of Striatum (TS), ROI03 = unknown. EXC1 (568
+        nm) excites tdTomato; EXC2 (473 nm) excites GRABDA3m. Both indicators
+        co-injected at NAc and TS.
       rows:
         - name: "0"
-          location: "ROI01"                   # TODO ask the lab: replace with brain region name (e.g., "NAc", "VTA")
-          excitation_wavelength_in_nm: 470.0  # TODO ask the lab: confirm EXC1 wavelength (nm)
-          emission_wavelength_in_nm: 510.0    # TODO ask the lab: confirm emission wavelength (nm) (e.g., 510 for GCaMP)
-          indicator: unknown_indicator
+          location: "NAc"
+          excitation_wavelength_in_nm: 568.0
+          emission_wavelength_in_nm: 581.0
+          indicator: tdTomato
           optical_fiber: optical_fiber_ROI01
           excitation_source: excitation_source_EXC1
           photodetector: photodetector_BFPD
         - name: "1"
-          location: "ROI01"                   # TODO ask the lab: replace with brain region name
-          excitation_wavelength_in_nm: 415.0  # TODO ask the lab: confirm EXC2 wavelength (nm)
-          emission_wavelength_in_nm: 510.0    # TODO ask the lab: confirm emission wavelength (nm)
-          indicator: unknown_indicator
+          location: "NAc"
+          excitation_wavelength_in_nm: 473.0
+          emission_wavelength_in_nm: 520.0
+          indicator: GRABDA3m
           optical_fiber: optical_fiber_ROI01
           excitation_source: excitation_source_EXC2
           photodetector: photodetector_BFPD
         - name: "2"
-          location: "ROI02"                   # TODO ask the lab: replace with brain region name
-          excitation_wavelength_in_nm: 470.0  # TODO ask the lab: confirm EXC1 wavelength (nm)
-          emission_wavelength_in_nm: 510.0    # TODO ask the lab: confirm emission wavelength (nm)
-          indicator: unknown_indicator
+          location: "Tail of Striatum"
+          excitation_wavelength_in_nm: 568.0
+          emission_wavelength_in_nm: 581.0
+          indicator: tdTomato
           optical_fiber: optical_fiber_ROI02
           excitation_source: excitation_source_EXC1
           photodetector: photodetector_BFPD
         - name: "3"
-          location: "ROI02"                   # TODO ask the lab: replace with brain region name
-          excitation_wavelength_in_nm: 415.0  # TODO ask the lab: confirm EXC2 wavelength (nm)
-          emission_wavelength_in_nm: 510.0    # TODO ask the lab: confirm emission wavelength (nm)
-          indicator: unknown_indicator
+          location: "Tail of Striatum"
+          excitation_wavelength_in_nm: 473.0
+          emission_wavelength_in_nm: 520.0
+          indicator: GRABDA3m
           optical_fiber: optical_fiber_ROI02
           excitation_source: excitation_source_EXC2
           photodetector: photodetector_BFPD
         - name: "4"
-          location: "ROI03"                   # TODO ask the lab: replace with brain region name
-          excitation_wavelength_in_nm: 470.0  # TODO ask the lab: confirm EXC1 wavelength (nm)
-          emission_wavelength_in_nm: 510.0    # TODO ask the lab: confirm emission wavelength (nm)
+          location: "unknown" # ROI03 purpose TBD
+          excitation_wavelength_in_nm: 568.0
+          emission_wavelength_in_nm: 581.0 # assuming tdTomato by analogy; TBD
           indicator: unknown_indicator
           optical_fiber: optical_fiber_ROI03
           excitation_source: excitation_source_EXC1
           photodetector: photodetector_BFPD
         - name: "5"
-          location: "ROI03"                   # TODO ask the lab: replace with brain region name
-          excitation_wavelength_in_nm: 415.0  # TODO ask the lab: confirm EXC2 wavelength (nm)
-          emission_wavelength_in_nm: 510.0    # TODO ask the lab: confirm emission wavelength (nm)
+          location: "unknown" # ROI03 purpose TBD
+          excitation_wavelength_in_nm: 473.0
+          emission_wavelength_in_nm: 520.0 # assuming GRABDA3m by analogy; TBD
           indicator: unknown_indicator
           optical_fiber: optical_fiber_ROI03
           excitation_source: excitation_source_EXC2
           photodetector: photodetector_BFPD
 
     # ── FiberPhotometryResponseSeries (raw acquisition) ───────────────────────
-    # stream_name values match HDF5 paths auto-discovered by DoricFiberPhotometryInterface:
-    # DataAcquisition/<path-with-slashes-replaced-by-underscores>
+
     FiberPhotometryResponseSeries:
       - name: FiberPhotometry_EXC1_ROI01
-        description: "Raw demodulated fluorescence from ROI01, EXC1 channel. Doric arbitrary fluorescence units."
+        description: "Raw demodulated tdTomato fluorescence from NAc (ROI01), EXC1 (568
+          nm). Doric arbitrary fluorescence units."
         unit: F
         stream_name: BBC300_ROISignals_Series0001_CAM1EXC1_ROI01
-        fiber_photometry_table_region: [0]
-        fiber_photometry_table_region_description: "FiberPhotometryTable row 0: ROI01, EXC1."
+        fiber_photometry_table_region: [ 0 ]
+        fiber_photometry_table_region_description: "FiberPhotometryTable row 0: NAc, EXC1 (568 nm), tdTomato."
       - name: FiberPhotometry_EXC2_ROI01
-        description: "Raw demodulated fluorescence from ROI01, EXC2 channel. Doric arbitrary fluorescence units."
+        description: "Raw demodulated GRABDA3m fluorescence from NAc (ROI01), EXC2 (473
+          nm). Doric arbitrary fluorescence units."
         unit: F
         stream_name: BBC300_ROISignals_Series0001_CAM1EXC2_ROI01
-        fiber_photometry_table_region: [1]
-        fiber_photometry_table_region_description: "FiberPhotometryTable row 1: ROI01, EXC2."
+        fiber_photometry_table_region: [ 1 ]
+        fiber_photometry_table_region_description: "FiberPhotometryTable row 1: NAc, EXC2 (473 nm), GRABDA3m."
       - name: FiberPhotometry_EXC1_ROI02
-        description: "Raw demodulated fluorescence from ROI02, EXC1 channel. Doric arbitrary fluorescence units."
+        description: "Raw demodulated tdTomato fluorescence from Tail of Striatum
+          (ROI02), EXC1 (568 nm). Doric arbitrary fluorescence units."
         unit: F
         stream_name: BBC300_ROISignals_Series0001_CAM1EXC1_ROI02
-        fiber_photometry_table_region: [2]
-        fiber_photometry_table_region_description: "FiberPhotometryTable row 2: ROI02, EXC1."
+        fiber_photometry_table_region: [ 2 ]
+        fiber_photometry_table_region_description: "FiberPhotometryTable row 2: TS, EXC1 (568 nm), tdTomato."
       - name: FiberPhotometry_EXC2_ROI02
-        description: "Raw demodulated fluorescence from ROI02, EXC2 channel. Doric arbitrary fluorescence units."
+        description: "Raw demodulated GRABDA3m fluorescence from Tail of Striatum
+          (ROI02), EXC2 (473 nm). Doric arbitrary fluorescence units."
         unit: F
         stream_name: BBC300_ROISignals_Series0001_CAM1EXC2_ROI02
-        fiber_photometry_table_region: [3]
-        fiber_photometry_table_region_description: "FiberPhotometryTable row 3: ROI02, EXC2."
+        fiber_photometry_table_region: [ 3 ]
+        fiber_photometry_table_region_description: "FiberPhotometryTable row 3: TS, EXC2 (473 nm), GRABDA3m."
       - name: FiberPhotometry_EXC1_ROI03
-        description: "Raw demodulated fluorescence from ROI03, EXC1 channel. Doric arbitrary fluorescence units."
+        description: "Raw demodulated fluorescence from ROI03 (unknown brain region),
+          EXC1 (568 nm). Doric arbitrary fluorescence units. ROI03 purpose TBD."
         unit: F
         stream_name: BBC300_ROISignals_Series0001_CAM1EXC1_ROI03
-        fiber_photometry_table_region: [4]
-        fiber_photometry_table_region_description: "FiberPhotometryTable row 4: ROI03, EXC1."
+        fiber_photometry_table_region: [ 4 ]
+        fiber_photometry_table_region_description: "FiberPhotometryTable row 4: ROI03 (unknown), EXC1 (568 nm)."
       - name: FiberPhotometry_EXC2_ROI03
-        description: "Raw demodulated fluorescence from ROI03, EXC2 channel. Doric arbitrary fluorescence units."
+        description: "Raw demodulated fluorescence from ROI03 (unknown brain region),
+          EXC2 (473 nm). Doric arbitrary fluorescence units. ROI03 purpose TBD."
         unit: F
         stream_name: BBC300_ROISignals_Series0001_CAM1EXC2_ROI03
-        fiber_photometry_table_region: [5]
-        fiber_photometry_table_region_description: "FiberPhotometryTable row 5: ROI03, EXC2."
+        fiber_photometry_table_region: [ 5 ]
+        fiber_photometry_table_region_description: "FiberPhotometryTable row 5: ROI03 (unknown), EXC2 (473 nm)."
