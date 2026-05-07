@@ -1,30 +1,46 @@
-# Per-subject metadata for the Phillips 2025 dataset
-# Fill in once Hannah responds to the metadata request (hannah_metadata_request.md)
-# All fields should follow NWB conventions:
-#   species: Latin binomial (Rattus norvegicus)
+# Per-subject metadata for the Phillips 2025 dataset.
+# Source: Subject metadata.xlsx provided by Hannah Phillips (2026-05-06).
+#
+# NWB conventions:
+#   species: Latin binomial
 #   sex: "M", "F", "U", or "O"
-#   age: ISO 8601 duration, e.g. "P90D" (90 days)  — or provide date_of_birth
-#   weight: "numeric unit", e.g. "0.350 kg"
-#   strain: e.g. "Sprague-Dawley", "Shank3 KO", etc.
+#   date_of_birth: YYYY-MM-DD (PyYAML loads this as datetime.date; convert_session.py
+#                               promotes it to datetime with America/New_York timezone)
+#   strain: inbred/outbred stock name
+#   genotype: allele description (e.g., "WT")
+#
+# Weight at experiment time: not recorded for any subject.
+# Hemisphere (L/R) of each fiber implant: randomized per animal, unknown here.
 
 M4:
   subject_id: M4
   species: Rattus norvegicus
-  sex: U         # TBD
-  # date_of_birth: YYYY-MM-DD  # TBD
-  # strain: TBD
-  # genotype: TBD
-  # weight: TBD
-  description: Autism rat model M4 (SFARI ARC). Metadata TBD.
+  strain: Long Evans
+  genotype: WT
+  sex: M
+  date_of_birth: 2024-01-18
+  description: >-
+    Wildtype Long Evans rat (experimental group: WT, SFARI ARC).
+    Surgery date: 2024-05-01. Weight at experiment time: not recorded.
 
 M5:
   subject_id: M5
   species: Rattus norvegicus
-  sex: U
-  description: Autism rat model M5 (SFARI ARC). Metadata TBD.
+  strain: Long Evans
+  genotype: WT
+  sex: M
+  date_of_birth: 2024-01-18
+  description: >-
+    Wildtype Long Evans rat (experimental group: WT, SFARI ARC).
+    Surgery date: 2024-05-14. Weight at experiment time: not recorded.
 
 M7:
   subject_id: M7
   species: Rattus norvegicus
-  sex: U
-  description: Autism rat model M7 (SFARI ARC). Metadata TBD.
+  strain: Long Evans
+  genotype: WT
+  sex: M
+  date_of_birth: 2024-01-18
+  description: >-
+    Wildtype Long Evans rat (experimental group: WT, SFARI ARC).
+    Surgery date: 2024-05-16. Weight at experiment time: not recorded.

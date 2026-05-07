@@ -1,7 +1,7 @@
 """Convert a single Uchida Lab (Phillips 2025) session to NWB."""
 
 import re
-from datetime import datetime
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import Union
 from zoneinfo import ZoneInfo
@@ -161,6 +161,12 @@ def session_to_nwb(
     if subject_metadata:
         metadata["Subject"] = dict_deep_update(metadata["Subject"], subject_metadata)
 
+    # Promote date_of_birth to datetime with timezone if loaded as a bare date
+    # (PyYAML parses YYYY-MM-DD as datetime.date; PyNWB Subject requires datetime)
+    dob = metadata["Subject"].get("date_of_birth")
+    if isinstance(dob, date) and not isinstance(dob, datetime):
+        metadata["Subject"]["date_of_birth"] = datetime.combine(dob, time.min).replace(tzinfo=_TIMEZONE)
+
     # ── Run conversion ───────────────────────────────────────────────────────
     converter.run_conversion(
         nwbfile_path=nwbfile_path,
@@ -173,13 +179,13 @@ def session_to_nwb(
 
 
 if __name__ == "__main__":
-    import yaml
-
-    _subject_metadata_path = (
-        Path(__file__).parent / "_metadata" / "subject_metadata.yaml"
+    from uchida_lab_to_nwb.phillips_2025.phillips_2025_convert_all_sessions import (
+        load_subject_metadata_from_xlsx,
     )
-    with open(_subject_metadata_path) as f:
-        _all_subjects = yaml.safe_load(f)
+
+    _all_subjects = load_subject_metadata_from_xlsx(
+        "H:/Uchida-CN-data-share/Subject metadata.xlsx"
+    )
     _subject_meta = _all_subjects.get("M4", {})
 
     session_to_nwb(
