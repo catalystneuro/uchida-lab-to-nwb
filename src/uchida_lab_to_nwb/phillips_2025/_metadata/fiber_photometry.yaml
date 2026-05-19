@@ -20,21 +20,19 @@ Ophys:
     ExcitationSourceModels:
       - name: doric_led_exc1_model
         description: >-
-          Doric BBC300 LED for EXC1 excitation channel (568 nm). Used to excite
-          tdTomato (red control fluorophore, emission 581 nm).
+          Doric BBC300 LED for EXC1 excitation channel (568 nm). 
         manufacturer: Doric Lenses
         source_type: LED
         excitation_mode: one-photon
-        wavelength_range_in_nm: [ 568.0, 568.0 ]
+        wavelength_range_in_nm: [ 555.0, 570.0 ]
 
       - name: doric_led_exc2_model
         description: >-
-          Doric BBC300 LED for EXC2 excitation channel (473 nm). Used to excite
-          GRABDA3m (green dopamine sensor, emission 520 nm).
+          Doric BBC300 LED for EXC2 excitation channel (473 nm). 
         manufacturer: Doric Lenses
         source_type: LED
         excitation_mode: one-photon
-        wavelength_range_in_nm: [ 473.0, 473.0 ]
+        wavelength_range_in_nm: [ 460.0, 490.0 ]
 
     PhotodetectorModels:
       - name: doric_bfpd_model
