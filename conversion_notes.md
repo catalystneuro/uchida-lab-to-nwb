@@ -237,18 +237,57 @@ related to fiber photometry.
 
 ## Temporal Synchronization
 
-**Reference clock**: pCampi (defines `t = 0` in NWB)
+**Status (2026-07-23): cross-stream alignment REMOVED pending redesign.** The previous
+`temporally_align_data_interfaces()` implementation (pCampi as reference clock, described below
+for historical context) had multiple confirmed bugs, found by writing full-length
+(`stub_test=False`) single-stream debug NWB files (`tests/test_doric.py`, `tests/test_dannce.py`,
+`tests/test_processed_fp.py`) and inspecting them directly:
 
-| Stream | Alignment method |
-| ------ | ---------------- |
-| Video (6 cameras) | campy_trigger rising edges → per-frame timestamps |
-| Doric raw photometry | Doric `DigitalIO/Camera1` rising edges ↔ pCampi `rbfmc_frames` rising edges → linear interp/extrapolation |
-| Interpolated photometry | Same as video (resampled to video frame rate by lab pipeline) |
-| DANNCE pose | `sampleID` frame indices → campy_trigger timestamps |
+- **Doric → pCampi alignment never actually ran.** pCampi channel 1 (`rbfmc_frames`, meant to
+  carry Doric BBC300 Camera1 sync pulses) is **entirely zero for the full session, in all 6
+  session `.h5` files** (checked all of `day_1`/`day_2` × M4/M5/M7). `get_doric_frame_rising_edges()`
+  returns 0 edges, so the old code silently fell back to raw, unconverted Doric-clock timestamps.
+  This looks like an acquisition-side problem (channel never wired/recorded), not a code bug —
+  open question for Hannah.
+- **Frame-count mismatch**: pCampi `campy_trigger` pulses (90,074) vs. actual saved camera frames
+  (90,000, confirmed via `frametimes.npy` and the `.mp4`'s own frame count).** The camera dropped
+  ~74 frames relative to trigger pulses. This broke two things:
+  - `interpolated_campy_and_doric.mat` (lab-processed photometry) turns out to have 90,074
+    samples — it was resampled onto the full trigger-pulse grid, not the 90,000-frame saved-video
+    grid. The old code assumed these matched (`frametimes.npy` length), causing a hard
+    `ValueError: Length of data does not match length of timestamps` when run without
+    `stub_test=True` (masked previously because stub truncation applied the same truncation to
+    both data and timestamps arrays).
+  - Video/DANNCE: `set_aligned_timestamps([campy_frame_times])` assigned all 90,074 pCampi edges
+    to each 90,000-frame video (silent count mismatch, no crash but wrong frame↔time mapping for
+    a ~74-sample stretch), and DANNCE `sampleID` (range 0–89,999) indexed into that same
+    90,074-length array, compounding the same drift into pose data.
+
+**Current interim behavior (each stream on its own clock, no cross-stream alignment):**
+
+| Stream | Timestamps |
+| ------ | ---------- |
+| Doric raw photometry | Native Doric clock (as read from the `.doric` file), unmodified |
+| Interpolated (processed) photometry | Nominal regular series at the camera frame rate (`metadata.csv` `frameRate`), `starting_time=0.0` — no real per-sample clock is available for this stream (see `ProcessedFiberPhotometryInterface` docstring) |
+| DANNCE pose | `sampleID / sampling_rate` (`DANNCEInterface`'s built-in fallback when no `frametimes_file_path`/`video_file_path` is given) |
+| Video (6 cameras) | Each camera's own native per-frame timestamps (derived internally by `ExternalVideoInterface` from the video file itself) |
 | pCampi TTL | Native (written as acquisition TimeSeries at 1 kHz, `starting_time=0.0`) |
 
-Implementation: `Phillips2025NWBConverter.temporally_align_data_interfaces()` in
-`src/uchida_lab_to_nwb/phillips_2025/phillips_2025_nwbconverter.py`.
+`Phillips2025NWBConverter.temporally_align_data_interfaces()` has been deleted entirely (was in
+`src/uchida_lab_to_nwb/phillips_2025/nwbconverter.py`). `ProcessedFiberPhotometryInterface` no
+longer takes `frametimes_file_path` (takes `sampling_rate` instead); `convert_session.py` no
+longer passes `frametimes_file_path` to `DANNCEConverter`, passing `sampling_rate` (read from
+`videos/Camera1/metadata.csv`) instead.
+
+**Known caveat:** `NWBFile.session_start_time` is still set from the pCampi filename
+(`PCampiSyncInterface` is the only interface that provides it) — but `DoricFiberPhotometryInterface`
+does not set its own session_start_time, so raw Doric photometry timestamps (Doric's own,
+unmodified clock) should NOT be interpreted as starting exactly at `session_start_time`; the
+actual offset between Doric's recording start and pCampi's recording start is currently unknown.
+
+Next step: figure out how to align all streams to the Doric clock (per
+Doric's own `Created` file attribute / DigitalIO channels), now that pCampi's `rbfmc_frames`
+channel has turned out to be unusable.
 
 ## NWB Output Structure
 

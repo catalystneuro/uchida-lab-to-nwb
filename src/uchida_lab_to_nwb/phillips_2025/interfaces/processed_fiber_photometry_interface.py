@@ -29,11 +29,7 @@ class ProcessedFiberPhotometryInterface(BaseFiberPhotometryInterface):
     ``processing/ophys`` module rather than ``acquisition``, since the data is a processed
     derivative.
 
-    Timestamps are not embedded in the ``.mat`` file (the lab pipeline interpolated to the video
-    frame grid but did not record it); pass ``frametimes_file_path`` (a ``frametimes.npy``, shape
-    ``(2, n_frames)``, row 1 = elapsed seconds) for the initial timestamps. These are typically
-    replaced with the pCampi-aligned video frame times by
-    ``Phillips2025NWBConverter.temporally_align_data_interfaces()``.
+    Timestamps are not embedded in the ``.mat`` file.
     """
 
     display_name = "ProcessedFiberPhotometry"
@@ -46,7 +42,7 @@ class ProcessedFiberPhotometryInterface(BaseFiberPhotometryInterface):
         self,
         *,
         file_path: FilePath,
-        frametimes_file_path: FilePath,
+        sampling_rate: float,
         stream_names: str | list[str],
         metadata_key: str | None = None,
         stream_indices: list[int] | None = None,
@@ -58,9 +54,10 @@ class ProcessedFiberPhotometryInterface(BaseFiberPhotometryInterface):
         ----------
         file_path : FilePath
             Path to ``interpolated_campy_and_doric.mat``.
-        frametimes_file_path : FilePath
-            Path to the corresponding ``frametimes.npy`` (shape ``(2, n_frames)``; row 1 = elapsed
-            seconds from session start), used for the initial (pre-alignment) timestamps.
+        sampling_rate : float
+            Nominal sampling rate (Hz) used to generate a regular timestamps array
+            (``starting_time=0.0``, ``rate=sampling_rate``) on this interface's own, unaligned
+            clock -- e.g. the camera's ``frameRate`` from ``metadata.csv``.
         stream_names : str or list of str
             Doric excitation-channel name(s) (e.g. ``"CAM1EXC1"``) whose ROI traces are
             column-stacked into this interface's single ``FiberPhotometryResponseSeries``. Call
@@ -76,15 +73,15 @@ class ProcessedFiberPhotometryInterface(BaseFiberPhotometryInterface):
         """
         super().__init__(
             file_path=file_path,
-            frametimes_file_path=frametimes_file_path,
             stream_names=stream_names,
             metadata_key=metadata_key,
             stream_indices=stream_indices,
             verbose=verbose,
         )
-        self._streams: dict[str, int] = self._discover_streams(self.source_data["file_path"])
-        frametimes = np.load(str(self.source_data["frametimes_file_path"]))
-        self._video_timestamps = frametimes[1]
+        self._sampling_rate = float(sampling_rate)
+        self._streams: dict[str, int] = self._discover_streams(
+            self.source_data["file_path"]
+        )
 
     # ------------------------------------------------------------------
     # Stream discovery
@@ -144,8 +141,10 @@ class ProcessedFiberPhotometryInterface(BaseFiberPhotometryInterface):
             return np.asarray(f[trace_ref][:])
 
     def _get_stream_timestamps(self, *, stream_name: str) -> np.ndarray:
-        # All channels share the same video-rate timestamps (interpolated to a common frame grid).
-        return self._video_timestamps
+        # No real clock available for this stream (see class docstring); generate a nominal
+        # regular timestamps array on this interface's own, unaligned clock.
+        n_samples = self._get_stream_data(stream_name=stream_name).shape[0]
+        return np.arange(n_samples) / self._sampling_rate
 
     # ------------------------------------------------------------------
     # NWB conversion (writes to processing/ophys instead of acquisition)
@@ -179,12 +178,16 @@ class ProcessedFiberPhotometryInterface(BaseFiberPhotometryInterface):
 
         data = stub(self._read_response_data())
         timestamps = stub(self.get_timestamps())
-        timing_kwargs = self._timing_kwargs_from_timestamps(timestamps, always_write_timestamps)
+        timing_kwargs = self._timing_kwargs_from_timestamps(
+            timestamps, always_write_timestamps
+        )
 
         series_metadata = fiber_photometry_metadata[self.metadata_key]
         table_region = get_fiber_photometry_table_region(
             fiber_photometry_table=fiber_photometry_table,
-            table_rows_metadata=fiber_photometry_metadata["FiberPhotometryTable"]["rows"],
+            table_rows_metadata=fiber_photometry_metadata["FiberPhotometryTable"][
+                "rows"
+            ],
             row_metadata_keys=series_metadata["fiber_photometry_table_region"],
             description=series_metadata["fiber_photometry_table_region_description"],
         )

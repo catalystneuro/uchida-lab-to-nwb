@@ -1,5 +1,6 @@
 """Convert a single Uchida Lab (Phillips 2025) session to NWB."""
 
+import csv
 import re
 from datetime import date, datetime, time
 from pathlib import Path
@@ -17,6 +18,15 @@ _TIMEZONE = ZoneInfo("America/New_York")
 
 # pCampi filename pattern: YYMMDD_HHMMSS_M{id}.h5
 _PCAMPI_PATTERN = re.compile(r"(\d{6}_\d{6})_(M\d+)\.h5")
+
+
+def _read_camera_frame_rate(metadata_csv_path: Path) -> float:
+    """Read the ``frameRate`` field (Hz) from a campy ``metadata.csv`` file."""
+    with open(metadata_csv_path, newline="") as f:
+        for key, value in csv.reader(f):
+            if key == "frameRate":
+                return float(value)
+    raise ValueError(f"'frameRate' not found in {metadata_csv_path}")
 
 
 def session_to_nwb(
@@ -41,7 +51,7 @@ def session_to_nwb(
         - ``DANNCE/save_data_AVG0.mat``    — DANNCE pose output
         - ``calibration/calibration.json`` — 6-camera calibration (+ hires_camN_params.mat)
         - ``videos/Camera{1..6}/0.mp4``    — per-camera videos
-        - ``videos/Camera1/frametimes.npy``— per-frame timestamps
+        - ``videos/Camera1/metadata.csv``  — camera acquisition metadata (frameRate, etc.)
     output_dir_path : str or Path
         Directory where the NWB file will be written.
     subject_metadata : dict, optional
@@ -53,6 +63,15 @@ def session_to_nwb(
         If True, overwrite an existing NWB file at the output path.
     verbose : bool
         Pass-through to converter interfaces.
+
+    Notes
+    -----
+    Temporal alignment across streams is not yet implemented (see conversion_notes.md). Each
+    stream currently writes timestamps on its own native/nominal clock. ``NWBFile.session_start_time``
+    is set from the pCampi filename (``PCampiSyncInterface`` is the only interface that sets it);
+    ``DoricFiberPhotometryInterface`` does not set its own session_start_time, so raw Doric
+    photometry timestamps (Doric's own clock, not offset-corrected to pCampi) should not be
+    interpreted as starting exactly at ``session_start_time``.
     """
     session_dir_path = Path(session_dir_path)
     output_dir_path = Path(output_dir_path)
@@ -71,7 +90,7 @@ def session_to_nwb(
 
     processed_mat = session_dir_path / "interpolated_campy_and_doric.mat"
     dannce_mat = session_dir_path / "DANNCE" / "save_data_AVG0.mat"
-    frametimes_npy = session_dir_path / "videos" / "Camera1" / "frametimes.npy"
+    camera1_metadata_csv = session_dir_path / "videos" / "Camera1" / "metadata.csv"
 
     # ── Parse session_id and subject_id from pCampi filename ─────────────────
     m = _PCAMPI_PATTERN.match(pcampi_file.name)
@@ -128,10 +147,9 @@ def session_to_nwb(
         conversion_options[key] = dict(stub_test=stub_test)
 
     # Processed (interpolated) fiber photometry (present when pipeline has been run): one
-    # interface per channel, mirroring the raw Doric interfaces above. Columns are sliced to
-    # [0, 1] = NAc, TS (dropping the still-unidentified third ROI column) so the table region
-    # matches the raw interfaces' row order.
-    if processed_mat.is_file() and frametimes_npy.is_file():
+    # interface per channel, mirroring the raw Doric interfaces above.
+    if processed_mat.is_file() and camera1_metadata_csv.is_file():
+        camera_frame_rate = _read_camera_frame_rate(camera1_metadata_csv)
         for key, stream_name, metadata_key in [
             ("ProcessedControl", "CAM1EXC1", "fiber_photometry_processed_control"),
             (
@@ -142,15 +160,19 @@ def session_to_nwb(
         ]:
             source_data[key] = dict(
                 file_path=str(processed_mat),
-                frametimes_file_path=str(frametimes_npy),
+                sampling_rate=camera_frame_rate,
                 stream_names=stream_name,
                 stream_indices=[0, 1],
                 metadata_key=metadata_key,
             )
             conversion_options[key] = dict(stub_test=stub_test)
 
-    # DANNCE pose estimation + 6-camera video (combined via DANNCEConverter)
-    if dannce_mat.is_file() and frametimes_npy.is_file():
+    # DANNCE pose estimation + 6-camera video (combined via DANNCEConverter). No
+    # frametimes_file_path is passed; instead DANNCE pose timestamps are computed
+    # from sampleID / sampling_rate, and each camera's video keeps its own native
+    # per-frame timestamps.
+    if dannce_mat.is_file() and camera1_metadata_csv.is_file():
+        camera_frame_rate = _read_camera_frame_rate(camera1_metadata_csv)
         video_file_paths = {}
         for cam_idx in range(1, 7):
             mp4 = session_dir_path / "videos" / f"Camera{cam_idx}" / "0.mp4"
@@ -160,7 +182,7 @@ def session_to_nwb(
         source_data["DANNCE"] = dict(
             file_path=str(dannce_mat),
             video_file_paths=video_file_paths,
-            frametimes_file_path=str(frametimes_npy),
+            sampling_rate=camera_frame_rate,
             subject_name=subject_id,
             animal_index=0,
         )
@@ -271,6 +293,6 @@ if __name__ == "__main__":
         session_dir_path="H:/Uchida-CN-data-share/Hannah_data/M4-M7/Lone_data/day_1/M4",
         output_dir_path="H:/uchida-nwbfiles",
         subject_metadata=_subject_meta,
-        stub_test=False,
+        stub_test=True,
         verbose=True,
     )
