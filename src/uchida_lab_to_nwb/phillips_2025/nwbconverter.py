@@ -16,9 +16,10 @@ class Phillips2025NWBConverter(NWBConverter):
     """Primary conversion class for the Uchida Lab SFARI ARC dataset.
 
     Data streams:
-    - Doric{Control,DopamineSignal}{NAc,TS}: raw fiber photometry from Doric BBC300 (.doric),
-      one ``DoricFiberPhotometryInterface`` per ROI × channel (4 total; each writes a single
-      ``FiberPhotometryResponseSeries`` sharing one ``FiberPhotometryTable``). Keys use
+    - Doric{Control,DopamineSignal}: raw fiber photometry from Doric BBC300 (.doric), one
+      ``DoricFiberPhotometryInterface`` per channel (2 total). Each writes a single
+      ``FiberPhotometryResponseSeries`` whose 2 columns are the NAc and TS ROIs (column-stacked
+      via a 2-element ``stream_names`` list), sharing one ``FiberPhotometryTable``. Keys use
       functional roles rather than raw hardware channel names: EXC1 -> control (tdTomato),
       EXC2 -> dopamine_signal (GRABDA3m); ROI01 -> NAc, ROI02 -> TS.
     - DoricProcessed: lab-processed dF/F traces (interpolated_campy_and_doric_data.mat)
@@ -36,10 +37,8 @@ class Phillips2025NWBConverter(NWBConverter):
     """
 
     data_interface_classes = dict(
-        DoricControlNAc=DoricFiberPhotometryInterface,
-        DoricDopamineSignalNAc=DoricFiberPhotometryInterface,
-        DoricControlTS=DoricFiberPhotometryInterface,
-        DoricDopamineSignalTS=DoricFiberPhotometryInterface,
+        DoricControl=DoricFiberPhotometryInterface,
+        DoricDopamineSignal=DoricFiberPhotometryInterface,
         DoricProcessed=DoricProcessedPhotometryInterface,
         PCampiSync=PCampiSyncInterface,
         DANNCE=DANNCEConverter,
@@ -67,10 +66,10 @@ class Phillips2025NWBConverter(NWBConverter):
         doric_times_pcampi = pcampi.get_doric_frame_rising_edges()
 
         # ── Step 3 & 4: Align Doric clock to pCampi clock ────────────────────
-        # Each ROI x channel is its own DoricFiberPhotometryInterface instance, but
-        # all four read from the same .doric file and so discover the same full set of streams
-        # (including the Camera1 DigitalIO sync pulse, which none of them own as their primary
-        # stream) -- any one of them can be used to look up that shared sync stream.
+        # Each channel is its own DoricFiberPhotometryInterface instance, but both read from
+        # the same .doric file and so discover the same full set of streams (including the
+        # Camera1 DigitalIO sync pulse, which neither owns as one of its own stream_names) --
+        # either one can be used to look up that shared sync stream.
         doric_interfaces = [
             interface
             for interface in self.data_interface_objects.values()

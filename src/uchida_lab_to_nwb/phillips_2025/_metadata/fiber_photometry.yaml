@@ -244,37 +244,22 @@ FiberPhotometry:
       #   ROI03 purpose TBD — only 2 implants confirmed by Hannah.
 
   # ── FiberPhotometryResponseSeries (raw acquisition) ───────────────────────
-  # Keys match the explicit `metadata_key` passed to each DoricFiberPhotometryInterface
-  # instance in convert_session.py (one interface per ROI × channel).
+  # One series per channel; each series' 2 columns are the NAc and TS ROIs (column-stacked
+  # from a 2-element stream_names list in convert_session.py, in that column order). Keys
+  # match the explicit `metadata_key` passed to each DoricFiberPhotometryInterface instance.
 
-  fiber_photometry_control_NAc:
-    name: FiberPhotometry_Control_NAc
-    description: "Raw demodulated tdTomato fluorescence from NAc, control
-      channel (568 nm). Doric arbitrary fluorescence units."
+  fiber_photometry_control:
+    name: FiberPhotometryControl
+    description: "Raw demodulated tdTomato fluorescence, control channel (568
+      nm). Columns: NAc, TS. Doric arbitrary fluorescence units."
     unit: F
-    fiber_photometry_table_region: [ row_control_NAc ]
-    fiber_photometry_table_region_description: "FiberPhotometryTable row: NAc, control (568 nm), tdTomato."
+    fiber_photometry_table_region: [ row_control_NAc, row_control_TS ]
+    fiber_photometry_table_region_description: "FiberPhotometryTable rows: NAc and TS, control (568 nm), tdTomato."
 
-  fiber_photometry_dopamine_signal_NAc:
-    name: FiberPhotometry_DopamineSignal_NAc
-    description: "Raw demodulated GRABDA3m fluorescence from NAc, dopamine
-      signal channel (473 nm). Doric arbitrary fluorescence units."
+  fiber_photometry_dopamine_signal:
+    name: FiberPhotometryDopamineSignal
+    description: "Raw demodulated GRABDA3m fluorescence, dopamine signal
+      channel (473 nm). Columns: NAc, TS. Doric arbitrary fluorescence units."
     unit: F
-    fiber_photometry_table_region: [ row_dopamine_signal_NAc ]
-    fiber_photometry_table_region_description: "FiberPhotometryTable row: NAc, dopamine_signal (473 nm), GRABDA3m."
-
-  fiber_photometry_control_TS:
-    name: FiberPhotometry_Control_TS
-    description: "Raw demodulated tdTomato fluorescence from TS, control
-      channel (568 nm). Doric arbitrary fluorescence units."
-    unit: F
-    fiber_photometry_table_region: [ row_control_TS ]
-    fiber_photometry_table_region_description: "FiberPhotometryTable row: TS, control (568 nm), tdTomato."
-
-  fiber_photometry_dopamine_signal_TS:
-    name: FiberPhotometry_DopamineSignal_TS
-    description: "Raw demodulated GRABDA3m fluorescence from TS, dopamine
-      signal channel (473 nm). Doric arbitrary fluorescence units."
-    unit: F
-    fiber_photometry_table_region: [ row_dopamine_signal_TS ]
-    fiber_photometry_table_region_description: "FiberPhotometryTable row: TS, dopamine_signal (473 nm), GRABDA3m."
+    fiber_photometry_table_region: [ row_dopamine_signal_NAc, row_dopamine_signal_TS ]
+    fiber_photometry_table_region_description: "FiberPhotometryTable rows: NAc and TS, dopamine_signal (473 nm), GRABDA3m."

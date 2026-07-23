@@ -97,34 +97,32 @@ def session_to_nwb(
     source_data["PCampiSync"] = dict(file_path=str(pcampi_file))
     conversion_options["PCampiSync"] = dict(stub_test=stub_test)
 
-    # Raw Doric photometry (always present): one interface per ROI x channel, each writing a
-    # single FiberPhotometryResponseSeries sharing one FiberPhotometryTable (see
-    # _metadata/fiber_photometry.yaml for the matching metadata_key entries).
-    for key, stream_name, metadata_key in [
+    # Raw Doric photometry (always present): one interface per channel, each writing a single
+    # FiberPhotometryResponseSeries whose two columns are the NAc and TS ROIs (column-stacked
+    # via a 2-element stream_names list; both ROIs under one excitation channel share the same
+    # Doric "Time" array, so this is safe). Table region order matches column order: NAc, TS.
+    # See _metadata/fiber_photometry.yaml for the matching metadata_key entries.
+    for key, stream_names, metadata_key in [
         (
-            "DoricControlNAc",
-            "BBC300_ROISignals_Series0001_CAM1EXC1_ROI01",
-            "fiber_photometry_control_NAc",
+            "DoricControl",
+            [
+                "BBC300_ROISignals_Series0001_CAM1EXC1_ROI01",
+                "BBC300_ROISignals_Series0001_CAM1EXC1_ROI02",
+            ],
+            "fiber_photometry_control",
         ),
         (
-            "DoricDopamineSignalNAc",
-            "BBC300_ROISignals_Series0001_CAM1EXC2_ROI01",
-            "fiber_photometry_dopamine_signal_NAc",
-        ),
-        (
-            "DoricControlTS",
-            "BBC300_ROISignals_Series0001_CAM1EXC1_ROI02",
-            "fiber_photometry_control_TS",
-        ),
-        (
-            "DoricDopamineSignalTS",
-            "BBC300_ROISignals_Series0001_CAM1EXC2_ROI02",
-            "fiber_photometry_dopamine_signal_TS",
+            "DoricDopamineSignal",
+            [
+                "BBC300_ROISignals_Series0001_CAM1EXC2_ROI01",
+                "BBC300_ROISignals_Series0001_CAM1EXC2_ROI02",
+            ],
+            "fiber_photometry_dopamine_signal",
         ),
     ]:
         source_data[key] = dict(
             file_path=str(doric_file),
-            stream_names=stream_name,
+            stream_names=stream_names,
             metadata_key=metadata_key,
         )
         conversion_options[key] = dict(stub_test=stub_test)
@@ -184,8 +182,8 @@ def session_to_nwb(
     # Each DoricFiberPhotometryInterface seeds a placeholder "row0" FiberPhotometryTable row
     # and "indicator" FiberPhotometryIndicators entry by default (get_default_fiber_photometry_
     # metadata()); fiber_photometry.yaml defines the real rows/indicators under different keys
-    # (row_{control,dopamine_signal}_{NAc,TS}, GRABDA3m/tdTomato), so the placeholders survive
-    # the deep-merge above, unreferenced by any series. Drop them.
+    # (row_{control,dopamine_signal}_{NAc,TS} for the table, GRABDA3m/tdTomato for indicators),
+    # so the placeholders survive the deep-merge above, unreferenced by any series. Drop them.
     metadata["FiberPhotometry"]["FiberPhotometryTable"]["rows"].pop("row0", None)
     metadata["FiberPhotometry"]["FiberPhotometryIndicators"].pop("indicator", None)
     # Same default-scaffold placeholders exist for the top-level Devices/DeviceModels
@@ -201,12 +199,11 @@ def session_to_nwb(
 
     # dict_deep_update concatenates lists rather than replacing them, so each series'
     # fiber_photometry_table_region ends up as ["row0", "row_..."] after the merge above;
-    # reset it to just the real row now that "row0" itself has been dropped.
+    # reset it to just the real rows now that "row0" itself has been dropped. Order matches
+    # the column order of each interface's stream_names list (NAc, then TS).
     _fp_table_region_by_key = {
-        "fiber_photometry_control_NAc": ["row_control_NAc"],
-        "fiber_photometry_dopamine_signal_NAc": ["row_dopamine_signal_NAc"],
-        "fiber_photometry_control_TS": ["row_control_TS"],
-        "fiber_photometry_dopamine_signal_TS": ["row_dopamine_signal_TS"],
+        "fiber_photometry_control": ["row_control_NAc", "row_control_TS"],
+        "fiber_photometry_dopamine_signal": ["row_dopamine_signal_NAc", "row_dopamine_signal_TS"],
     }
     for _key, _region in _fp_table_region_by_key.items():
         metadata["FiberPhotometry"][_key]["fiber_photometry_table_region"] = _region

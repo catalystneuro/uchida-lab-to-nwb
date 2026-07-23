@@ -45,7 +45,7 @@ Lone_data/
 
 | Stream | Format | Acquisition | NeuroConv Interface |
 | ------ | ------ | ----------- | ------------------- |
-| Raw fiber photometry | Doric `.doric` (HDF5) | Doric BBC300 | `DoricFiberPhotometryInterface` × 4 (neuroconv) — one instance per ROI × channel |
+| Raw fiber photometry | Doric `.doric` (HDF5) | Doric BBC300 | `DoricFiberPhotometryInterface` × 2 (neuroconv) — one instance per channel, each writing a 2-column (NAc, TS) `FiberPhotometryResponseSeries` |
 | Raw interpolated photometry | `.mat` (lab pipeline) | Uchida lab MATLAB | `DoricProcessedPhotometryInterface` (custom) — **needs revision, see below** |
 | pCampi sync | Custom `.h5` (NIDAQ) | LabVIEW at 1 kHz | `PCampiSyncInterface` (custom) |
 | 3D pose + 6-camera video | DANNCE `.mat` (23 kpts) + `.mp4` per camera | DANNCE inference; Basler a2A1920-160ucPRO via campy | `DANNCEConverter` (neuroconv) — combines pose + per-camera source video + calibrated Device, linked automatically |
@@ -67,8 +67,22 @@ functional roles (confirmed with the team): `EXC1` → `control` (tdTomato), `EX
 `dopamine_signal` (GRABDA3m); `ROI01` → `NAc`, `ROI02` → `TS` (also replaced the
 `FiberPhotometryTable` `location` value `"Tail of Striatum"` with `"TS"`). Applies throughout
 `nwbconverter.py`, `convert_session.py`, and `_metadata/fiber_photometry.yaml` — e.g.
-`DoricEXC1ROI01` → `DoricControlNAc`, `excitation_source_EXC1` → `excitation_source_control`,
-`optical_fiber_ROI01` → `optical_fiber_NAc`.
+`excitation_source_EXC1` → `excitation_source_control`, `optical_fiber_ROI01` →
+`optical_fiber_NAc`.
+
+**2026-07-23 (later same day):** Collapsed the 4 per-ROI `DoricFiberPhotometryInterface`
+instances (`DoricControlNAc`, `DoricDopamineSignalNAc`, `DoricControlTS`,
+`DoricDopamineSignalTS`) into 2 per-channel instances (`DoricControl`, `DoricDopamineSignal`),
+each passing a 2-element `stream_names` list (NAc, TS ROI streams for that channel) so the
+interface column-stacks them into one `FiberPhotometryResponseSeries` of shape
+`(n_times, 2)` instead of writing 2 separate 1-column series. Both ROI streams under a given
+excitation channel share the same Doric `Time` array, so a single shared timestamp array is
+still correct. `FiberPhotometryTable` itself is unchanged (still 4 rows, one per ROI × channel);
+only the response series were merged, with `fiber_photometry_table_region` set to
+`[row_..._NAc, row_..._TS]` (order matches the data columns). Final acquisition:
+`FiberPhotometryControl`, `FiberPhotometryDopamineSignal` (2 series total, not 4). Verified
+end-to-end against real M4 day_1 data — data shapes and table-region row order confirmed
+correct (`[NAc, TS]`).
 
 ## Doric File Structure (raw photometry)
 
