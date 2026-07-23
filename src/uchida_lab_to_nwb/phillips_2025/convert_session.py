@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 
-from uchida_lab_to_nwb.phillips_2025.phillips_2025_nwbconverter import (
+from uchida_lab_to_nwb.phillips_2025.nwbconverter import (
     Phillips2025NWBConverter,
 )
 
@@ -99,7 +99,9 @@ def session_to_nwb(
 
     # Raw Doric photometry (always present)
     source_data["DoricPhotometry"] = dict(file_path=str(doric_file))
-    conversion_options["DoricPhotometry"] = dict(stub_test=stub_test, timing_source="aligned_timestamps")
+    conversion_options["DoricPhotometry"] = dict(
+        stub_test=stub_test, timing_source="aligned_timestamps"
+    )
 
     # Processed dF/F (present when pipeline has been run)
     if processed_mat.is_file() and frametimes_npy.is_file():
@@ -165,7 +167,9 @@ def session_to_nwb(
     # (PyYAML parses YYYY-MM-DD as datetime.date; PyNWB Subject requires datetime)
     dob = metadata["Subject"].get("date_of_birth")
     if isinstance(dob, date) and not isinstance(dob, datetime):
-        metadata["Subject"]["date_of_birth"] = datetime.combine(dob, time.min).replace(tzinfo=_TIMEZONE)
+        metadata["Subject"]["date_of_birth"] = datetime.combine(dob, time.min).replace(
+            tzinfo=_TIMEZONE
+        )
 
     # ── Run conversion ───────────────────────────────────────────────────────
     converter.run_conversion(
@@ -179,7 +183,7 @@ def session_to_nwb(
 
 
 if __name__ == "__main__":
-    from uchida_lab_to_nwb.phillips_2025.phillips_2025_convert_all_sessions import (
+    from uchida_lab_to_nwb.phillips_2025.convert_all_sessions import (
         load_subject_metadata_from_xlsx,
     )
 

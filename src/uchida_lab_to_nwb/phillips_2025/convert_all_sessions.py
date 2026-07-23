@@ -1,4 +1,5 @@
 """Batch conversion of all Uchida Lab (Phillips 2025) sessions to NWB."""
+
 import datetime
 import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -11,7 +12,7 @@ from tqdm import tqdm
 
 from neuroconv.utils import load_dict_from_file
 
-from .phillips_2025_convert_session import session_to_nwb
+from .convert_session import session_to_nwb
 
 _TIMEZONE = ZoneInfo("America/New_York")
 
@@ -40,7 +41,9 @@ def load_subject_metadata_from_xlsx(xlsx_path: Union[str, Path]) -> dict:
     wb = openpyxl.load_workbook(xlsx_path)
     ws = wb.active
 
-    rows = [row for row in ws.iter_rows(values_only=True) if any(v is not None for v in row)]
+    rows = [
+        row for row in ws.iter_rows(values_only=True) if any(v is not None for v in row)
+    ]
     field_names = [str(row[0]) for row in rows]
     n_subjects = len(rows[0]) - 1
 
@@ -77,14 +80,18 @@ def load_subject_metadata_from_xlsx(xlsx_path: Union[str, Path]) -> dict:
 
         weight_raw = raw.get("Weight at time of experiment")
         weight_str = (
-            None if (weight_raw is None or str(weight_raw).lower() == "not available") else str(weight_raw)
+            None
+            if (weight_raw is None or str(weight_raw).lower() == "not available")
+            else str(weight_raw)
         )
 
         desc_parts = [f"Experimental group: {exp_group}.", f"Strain: {strain_raw}."]
         if surgery_str:
             desc_parts.append(f"Surgery date: {surgery_str}.")
         desc_parts.append(
-            f"Weight at experiment time: {weight_str}." if weight_str else "Weight at experiment time: not recorded."
+            f"Weight at experiment time: {weight_str}."
+            if weight_str
+            else "Weight at experiment time: not recorded."
         )
         desc_parts.append("SFARI Autism Rat Models Consortium (ARC).")
 
@@ -153,7 +160,9 @@ def get_session_to_nwb_kwargs_per_session(
             if not subject_dir.is_dir():
                 continue
             # Sanity check: must have at least a pCampi H5 and a Doric file
-            if not list(subject_dir.glob("*.h5")) or not list(subject_dir.glob("*.doric")):
+            if not list(subject_dir.glob("*.h5")) or not list(
+                subject_dir.glob("*.doric")
+            ):
                 continue
             subject_id = subject_dir.name
             kwargs_list.append(
@@ -236,7 +245,9 @@ def dataset_to_nwb(
                 )
             )
 
-        for _ in tqdm(as_completed(futures), total=len(futures), desc="Converting sessions"):
+        for _ in tqdm(
+            as_completed(futures), total=len(futures), desc="Converting sessions"
+        ):
             pass
 
 

@@ -66,8 +66,8 @@ src/uchida_lab_to_nwb/
     │   ├── doric_processed_photometry_interface.py  # Processed dF/F .mat reader
     │   ├── pcampi_sync_interface.py              # pCampi TTL H5 reader
     │   └── sdannce_interface.py                  # DANNCE 3D pose reader
-    ├── phillips_2025_nwbconverter.py             # Main converter + sync logic
-    ├── phillips_2025_convert_session.py          # Single-session conversion script
-    ├── phillips_2025_convert_all_sessions.py     # Batch conversion script
-    └── phillips_2025_metadata.yaml               # Lab/experiment metadata
+    ├── nwbconverter.py                           # Main converter + sync logic
+    ├── convert_session.py                        # Single-session conversion script
+    ├── convert_all_sessions.py                   # Batch conversion script
+    └── general_metadata.yaml                     # Lab/experiment metadata
 ```
