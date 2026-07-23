@@ -46,7 +46,7 @@ def session_to_nwb(
         Directory where the NWB file will be written.
     subject_metadata : dict, optional
         Per-subject NWB Subject fields (species, sex, age, strain, etc.).
-        When not provided, placeholders from ``_metadata/phillips_2025_metadata.yaml`` are used.
+        When not provided, placeholders from ``metadata/phillips_2025_metadata.yaml`` are used.
     stub_test : bool
         If True, write a small stub file for quick testing.
     overwrite : bool
@@ -101,7 +101,7 @@ def session_to_nwb(
     # FiberPhotometryResponseSeries whose two columns are the NAc and TS ROIs (column-stacked
     # via a 2-element stream_names list; both ROIs under one excitation channel share the same
     # Doric "Time" array, so this is safe). Table region order matches column order: NAc, TS.
-    # See _metadata/fiber_photometry.yaml for the matching metadata_key entries.
+    # See metadata/fiber_photometry.yaml for the matching metadata_key entries.
     for key, stream_names, metadata_key in [
         (
             "DoricControl",
@@ -176,7 +176,7 @@ def session_to_nwb(
     metadata = dict_deep_update(metadata, editable_metadata)
 
     # Layer 3b: fiber photometry hardware metadata
-    fp_yaml_path = Path(__file__).parent / "_metadata" / "fiber_photometry.yaml"
+    fp_yaml_path = Path(__file__).parent / "metadata" / "fiber_photometry.yaml"
     metadata = dict_deep_update(metadata, load_dict_from_file(fp_yaml_path))
 
     # Each DoricFiberPhotometryInterface seeds a placeholder "row0" FiberPhotometryTable row
@@ -203,7 +203,10 @@ def session_to_nwb(
     # the column order of each interface's stream_names list (NAc, then TS).
     _fp_table_region_by_key = {
         "fiber_photometry_control": ["row_control_NAc", "row_control_TS"],
-        "fiber_photometry_dopamine_signal": ["row_dopamine_signal_NAc", "row_dopamine_signal_TS"],
+        "fiber_photometry_dopamine_signal": [
+            "row_dopamine_signal_NAc",
+            "row_dopamine_signal_TS",
+        ],
     }
     for _key, _region in _fp_table_region_by_key.items():
         metadata["FiberPhotometry"][_key]["fiber_photometry_table_region"] = _region
