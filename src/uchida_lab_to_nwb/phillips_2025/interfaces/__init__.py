@@ -1,2 +1,2 @@
-from .doric_processed_photometry_interface import DoricProcessedPhotometryInterface
 from .pcampi_sync_interface import PCampiSyncInterface
+from .processed_fiber_photometry_interface import ProcessedFiberPhotometryInterface

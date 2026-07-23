@@ -263,3 +263,27 @@ FiberPhotometry:
     unit: F
     fiber_photometry_table_region: [ row_dopamine_signal_NAc, row_dopamine_signal_TS ]
     fiber_photometry_table_region_description: "FiberPhotometryTable rows: NAc and TS, dopamine_signal (473 nm), GRABDA3m."
+
+  # ── FiberPhotometryResponseSeries (lab-processed, processing/ophys) ───────
+  # Same underlying signals as the raw series above, resampled by the lab's MATLAB pipeline
+  # to the video frame rate (~50 Hz). Still raw fluorescence, not dF/F. Written via
+  # ProcessedFiberPhotometryInterface, one instance per channel, reading
+  # interpolated_campy_and_doric.mat.
+
+  fiber_photometry_processed_control:
+    name: FiberPhotometryProcessedControl
+    description: "Demodulated tdTomato fluorescence, control channel (568 nm),
+      resampled to the video frame rate (~50 Hz). Columns: NAc, TS. Doric
+      arbitrary fluorescence units."
+    unit: F
+    fiber_photometry_table_region: [ row_control_NAc, row_control_TS ]
+    fiber_photometry_table_region_description: "FiberPhotometryTable rows: NAc and TS, control (568 nm), tdTomato."
+
+  fiber_photometry_processed_dopamine_signal:
+    name: FiberPhotometryProcessedDopamineSignal
+    description: "Demodulated GRABDA3m fluorescence, dopamine signal channel
+      (473 nm), resampled to the video frame rate (~50 Hz). Columns: NAc, TS.
+      Doric arbitrary fluorescence units."
+    unit: F
+    fiber_photometry_table_region: [ row_dopamine_signal_NAc, row_dopamine_signal_TS ]
+    fiber_photometry_table_region_description: "FiberPhotometryTable rows: NAc and TS, dopamine_signal (473 nm), GRABDA3m."

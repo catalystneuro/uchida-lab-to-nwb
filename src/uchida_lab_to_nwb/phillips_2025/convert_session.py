@@ -37,7 +37,7 @@ def session_to_nwb(
         Expected contents:
         - ``YYYYMMDD_HHMMSS_M{id}.h5``    — pCampi sync file
         - ``BBC300_Acq_*.doric``           — raw Doric photometry
-        - ``interpolated_campy_and_doric_data.mat`` — processed dF/F
+        - ``interpolated_campy_and_doric.mat``      — processed (interpolated) fiber photometry
         - ``DANNCE/save_data_AVG0.mat``    — DANNCE pose output
         - ``calibration/calibration.json`` — 6-camera calibration (+ hires_camN_params.mat)
         - ``videos/Camera{1..6}/0.mp4``    — per-camera videos
@@ -69,7 +69,7 @@ def session_to_nwb(
     assert len(doric_files) == 1, f"Expected one .doric file, found: {doric_files}"
     doric_file = doric_files[0]
 
-    processed_mat = session_dir_path / "interpolated_campy_and_doric_data.mat"
+    processed_mat = session_dir_path / "interpolated_campy_and_doric.mat"
     dannce_mat = session_dir_path / "DANNCE" / "save_data_AVG0.mat"
     frametimes_npy = session_dir_path / "videos" / "Camera1" / "frametimes.npy"
 
@@ -127,13 +127,27 @@ def session_to_nwb(
         )
         conversion_options[key] = dict(stub_test=stub_test)
 
-    # Processed dF/F (present when pipeline has been run)
+    # Processed (interpolated) fiber photometry (present when pipeline has been run): one
+    # interface per channel, mirroring the raw Doric interfaces above. Columns are sliced to
+    # [0, 1] = NAc, TS (dropping the still-unidentified third ROI column) so the table region
+    # matches the raw interfaces' row order.
     if processed_mat.is_file() and frametimes_npy.is_file():
-        source_data["DoricProcessed"] = dict(
-            file_path=str(processed_mat),
-            frametimes_file_path=str(frametimes_npy),
-        )
-        conversion_options["DoricProcessed"] = dict(stub_test=stub_test)
+        for key, stream_name, metadata_key in [
+            ("ProcessedControl", "CAM1EXC1", "fiber_photometry_processed_control"),
+            (
+                "ProcessedDopamineSignal",
+                "CAM1EXC2",
+                "fiber_photometry_processed_dopamine_signal",
+            ),
+        ]:
+            source_data[key] = dict(
+                file_path=str(processed_mat),
+                frametimes_file_path=str(frametimes_npy),
+                stream_names=stream_name,
+                stream_indices=[0, 1],
+                metadata_key=metadata_key,
+            )
+            conversion_options[key] = dict(stub_test=stub_test)
 
     # DANNCE pose estimation + 6-camera video (combined via DANNCEConverter)
     if dannce_mat.is_file() and frametimes_npy.is_file():
@@ -207,6 +221,11 @@ def session_to_nwb(
             "row_dopamine_signal_NAc",
             "row_dopamine_signal_TS",
         ],
+        "fiber_photometry_processed_control": ["row_control_NAc", "row_control_TS"],
+        "fiber_photometry_processed_dopamine_signal": [
+            "row_dopamine_signal_NAc",
+            "row_dopamine_signal_TS",
+        ],
     }
     for _key, _region in _fp_table_region_by_key.items():
         metadata["FiberPhotometry"][_key]["fiber_photometry_table_region"] = _region
@@ -252,6 +271,6 @@ if __name__ == "__main__":
         session_dir_path="H:/Uchida-CN-data-share/Hannah_data/M4-M7/Lone_data/day_1/M4",
         output_dir_path="H:/uchida-nwbfiles",
         subject_metadata=_subject_meta,
-        stub_test=True,
+        stub_test=False,
         verbose=True,
     )

@@ -7,8 +7,8 @@ from neuroconv.datainterfaces import DoricFiberPhotometryInterface
 from scipy.interpolate import interp1d
 
 from uchida_lab_to_nwb.phillips_2025.interfaces import (
-    DoricProcessedPhotometryInterface,
     PCampiSyncInterface,
+    ProcessedFiberPhotometryInterface,
 )
 
 
@@ -22,7 +22,10 @@ class Phillips2025NWBConverter(NWBConverter):
       via a 2-element ``stream_names`` list), sharing one ``FiberPhotometryTable``. Keys use
       functional roles rather than raw hardware channel names: EXC1 -> control (tdTomato),
       EXC2 -> dopamine_signal (GRABDA3m); ROI01 -> NAc, ROI02 -> TS.
-    - DoricProcessed: lab-processed dF/F traces (interpolated_campy_and_doric_data.mat)
+    - Processed{Control,DopamineSignal}: lab-processed fiber photometry, one
+      ``ProcessedFiberPhotometryInterface`` per channel (interpolated_campy_and_doric.mat).
+      Raw ROI fluorescence (not dF/F) resampled to the video frame rate; written to
+      processing/ophys, reusing the FiberPhotometryTable created by the raw Doric interfaces.
     - PCampiSync: pCampi LabVIEW TTL synchronization pulses (.h5)
     - DANNCE: 3D pose estimation (save_data_AVG0.mat) combined with the 6-camera behavioral
       video (.mp4 per camera, external link) via ``DANNCEConverter``, which links each camera's
@@ -39,7 +42,8 @@ class Phillips2025NWBConverter(NWBConverter):
     data_interface_classes = dict(
         DoricControl=DoricFiberPhotometryInterface,
         DoricDopamineSignal=DoricFiberPhotometryInterface,
-        DoricProcessed=DoricProcessedPhotometryInterface,
+        ProcessedControl=ProcessedFiberPhotometryInterface,
+        ProcessedDopamineSignal=ProcessedFiberPhotometryInterface,
         PCampiSync=PCampiSyncInterface,
         DANNCE=DANNCEConverter,
     )
@@ -116,8 +120,9 @@ class Phillips2025NWBConverter(NWBConverter):
                     aligned[valid] = campy_frame_times[sample_ids[valid]]
                     sub_interface.set_aligned_timestamps(aligned)
 
-        # ── Step 6: Align processed dF/F to video timestamps ─────────────────
-        if "DoricProcessed" in self.data_interface_objects:
-            proc = self.data_interface_objects["DoricProcessed"]
-            # Processed photometry has ~90,071 samples; trim to video frame count
-            proc.set_aligned_timestamps(campy_frame_times[: len(proc._timestamps)])
+        # ── Step 6: Align processed fiber photometry to video timestamps ────
+        for processed_key in ("ProcessedControl", "ProcessedDopamineSignal"):
+            proc = self.data_interface_objects.get(processed_key)
+            if proc is not None:
+                # Processed photometry has ~90,074 samples; trim to video frame count
+                proc.set_aligned_timestamps(campy_frame_times[: len(proc._video_timestamps)])

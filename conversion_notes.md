@@ -46,7 +46,7 @@ Lone_data/
 | Stream | Format | Acquisition | NeuroConv Interface |
 | ------ | ------ | ----------- | ------------------- |
 | Raw fiber photometry | Doric `.doric` (HDF5) | Doric BBC300 | `DoricFiberPhotometryInterface` × 2 (neuroconv) — one instance per channel, each writing a 2-column (NAc, TS) `FiberPhotometryResponseSeries` |
-| Raw interpolated photometry | `.mat` (lab pipeline) | Uchida lab MATLAB | `DoricProcessedPhotometryInterface` (custom) — **needs revision, see below** |
+| Raw interpolated photometry | `.mat` (lab pipeline) | Uchida lab MATLAB | `ProcessedFiberPhotometryInterface` |
 | pCampi sync | Custom `.h5` (NIDAQ) | LabVIEW at 1 kHz | `PCampiSyncInterface` (custom) |
 | 3D pose + 6-camera video | DANNCE `.mat` (23 kpts) + `.mp4` per camera | DANNCE inference; Basler a2A1920-160ucPRO via campy | `DANNCEConverter` (neuroconv) — combines pose + per-camera source video + calibrated Device, linked automatically |
 | Camera calibration | JSON + `.mat` (`hires_camN_params.mat`) | — | consumed by `DANNCEConverter` (`calibration_path`) to create calibrated camera Devices |
@@ -152,20 +152,79 @@ correct (`[NAc, TS]`).
 - `sampleID`: (90000,) — 0-based frame indices; used to index campy_trigger rising edges for alignment
 - `data` field meaning: smoothed / ground truth — TBD
 
-## Processed Photometry (`interpolated_campy_and_doric_data.mat`)
+## Processed Photometry
 
-**Important update (2026-05-06):** Hannah clarified that this file should contain only raw
-interpolated photometry signals (the Doric ROI signals resampled to video frame rate). The extra
-variables (`dff_resG`, `fit_baseG`, `rawGR`, etc.) are artifacts of an old test version of her
-interpolation script. She will replace the files with clean versions.
+Hannah's clean replacement files have arrived and were inspected directly (HDF5/v7.3, via
+`h5py`) against the real M4 day_1 session
+(`H:\Uchida-CN-data-share\Hannah_data\M4-M7\Lone_data\day_1\M4\`). There are now **two separate
+files** where there used to be one — they are not alternates of each other, they carry different
+content:
 
-**Action needed**: Update `DoricProcessedPhotometryInterface` once clean files are available.
-The interface currently reads dF/F variables that will no longer be present. The updated file will
-contain the raw GRABDA3m and tdTomato signals interpolated to ~50 Hz. The per-signal ROI
-mapping (which FiberPhotometryTable row each signal corresponds to) still needs to be confirmed
-once Hannah provides the clean files.
+### `interpolated_campy_and_doric.mat` — raw ROI traces, interpolated to video rate
 
-Hannah can provide separately computed dF/F at a later date if needed.
+v7.3 MAT-file containing one struct, `interpolated_data`, with two fields:
+
+- `channel_names`: 2 entries, `"CAM1EXC1"`, `"CAM1EXC2"` — these are the same stream-name roots
+  used by `DoricFiberPhotometryInterface` on the raw `.doric` file, i.e. **control** (tdTomato,
+  568 nm) and **dopamine_signal** (GRABDA3m, 473 nm).
+- `roi_traces_interpolated`: 2 entries (one per channel above), each shaped **(90074, 3)**
+  float64 — column order matches the 3 raw Doric ROI signals (ROI01, ROI02, ROI03) for that
+  excitation channel. Values are on the same scale as the raw `.doric` ROI signals (tens of
+  thousands to low hundreds), confirming these are **raw fluorescence, not dF/F** — exactly what
+  Hannah said the clean file would contain.
+- No embedded timestamps — like the old interface, alignment to the video frame clock still
+  needs to come from `frametimes.npy` (or the pCampi-aligned timestamps the converter already
+  computes for video/DANNCE).
+- ROI03 is still present and still unidentified (open question below carries over unchanged).
+
+This maps cleanly onto `BaseFiberPhotometryInterface`'s stream model: `stream_names` = the two
+channel names, `_get_stream_data` dereferences `roi_traces_interpolated[i]` for that channel
+(optionally sliced to columns `[0, 1]` = NAc, TS via `stream_indices`, dropping ROI03 the same
+way the raw Doric interfaces do), `_get_stream_timestamps` returns the shared video-rate
+timestamps for all channels.
+
+### `processed_dff.mat` — computed dF/F, single trace only
+
+A second, separate v7.3 file containing exactly **one** variable, `dff_resG`, shaped **(1,
+90071)** float64. This is a single already-computed dF/F trace — not per-ROI, not per-channel,
+no channel/ROI labels anywhere in the file. Name suggests "green" (dopamine_signal channel) but
+which ROI (NAc vs TS) or whether it's already a combination is unconfirmed.
+
+**Open question added**: ask Hannah (a) which ROI/channel `dff_resG` corresponds to, (b) why
+there is only one dF/F trace when there are 4 raw ROI×channel combinations (NAc/TS ×
+control/dopamine_signal) upstream, and (c) whether more dF/F traces are coming later or this is
+the final intended set.
+
+### Interface refactor (done, 2026-07-23)
+
+`DoricProcessedPhotometryInterface` (custom `BaseDataInterface`, hand-rolled `sio.loadmat` +
+manual `FiberPhotometryResponseSeries` construction) has been replaced by
+`ProcessedFiberPhotometryInterface` (`interfaces/processed_fiber_photometry_interface.py`),
+inheriting `BaseFiberPhotometryInterface` (pattern copied from neuroconv's
+`DoricFiberPhotometryInterface`) so it shares the same stream/timestamps/metadata-key/table-region
+machinery as the raw Doric interfaces instead of duplicating it. Two instances, one per channel
+(`ProcessedControl`, `ProcessedDopamineSignal`), each reading `interpolated_campy_and_doric.mat`
+with `stream_names="CAM1EXCn"` and `stream_indices=[0, 1]` (keeping NAc/TS, dropping the
+unidentified third ROI column, same convention as the raw interfaces). Since
+`BaseFiberPhotometryInterface.add_to_nwbfile` always writes to `acquisition`, this interface
+overrides `add_to_nwbfile` to reuse the same device/table-region helpers but write into
+`processing/ophys` instead (this data is a processed derivative, not raw acquisition).
+`processed_dff.mat` (single untagged dF/F trace) is intentionally **not** handled by this
+interface yet — decided to skip it until Hannah answers the open question above about what
+`dff_resG` actually is.
+
+Also fixed a latent bug found in the same pass: `convert_session.py` was looking for
+`interpolated_campy_and_doric_data.mat`, but the real file on disk is
+`interpolated_campy_and_doric.mat` (no `_data` suffix) — so this interface was silently never
+firing before. Added two new metadata entries (`fiber_photometry_processed_control`,
+`fiber_photometry_processed_dopamine_signal`) to `metadata/fiber_photometry.yaml`, reusing the
+same `FiberPhotometryTable` rows as the raw series.
+
+Verified end-to-end against the real M4 day_1 session (stub conversion): output NWB has
+`FiberPhotometryProcessedControl`/`FiberPhotometryProcessedDopamineSignal` in
+`processing/ophys`, shape `(n, 2)`, table regions `[NAc, TS]` rows matching the raw acquisition
+series; `nwbinspector --config dandi` reports only pre-existing DANNCE/video issues, nothing
+related to fiber photometry.
 
 ## pCampi Sync File (`YYMMDD_HHMMSS_M{id}.h5`)
 
@@ -220,8 +279,9 @@ Output filename convention: `sub-{subject_id}_ses-{YYMMDD_HHMMSS}_{subject_id}.n
 
 - [ ] **ROI03**: Why does the Doric file have 3 ROI signals per excitation channel when Hannah reports only 2 implants (NAc + TS)? Clarify with Hannah.
 - [ ] **Subject metadata**: Import from `Subject metadata.xlsx` (attached to Hannah's reply) — strain, sex, DOB, weight, surgery dates per animal.
-- [ ] **Clean .mat files**: Wait for Hannah to replace `interpolated_campy_and_doric_data.mat` with clean interpolated-only version; then update `DoricProcessedPhotometryInterface`.
-- [ ] **Social data**: Wait for Hannah's re-upload; update conversion to handle 2-animal DANNCE arrays.
+- [x] **Clean .mat files**: Received and inspected, see "Processed Photometry — clean files received" above. Now two files: `interpolated_campy_and_doric.mat` (raw ROI traces, 2 channels × 3 ROIs, interpolated to video rate) and `processed_dff.mat` (single untagged dF/F trace, `dff_resG`).
+- [ ] **`dff_resG` identity**: Which ROI/channel does the single dF/F trace in `processed_dff.mat` correspond to? Why only one trace instead of 4 (2 ROIs × 2 channels)? Ask Hannah.
+- [ ] **Social data**: update conversion to handle 2-animal DANNCE arrays.
 - [ ] **SFARI grant number + CC-BY-4.0 license**: Ask Nao Uchida directly.
 - [ ] **ORCIDs / contributors**: Follow up when manuscript writing begins.
 - [ ] **DANNCE `data` field**: Confirm meaning (smoothed predictions vs. ground truth).
