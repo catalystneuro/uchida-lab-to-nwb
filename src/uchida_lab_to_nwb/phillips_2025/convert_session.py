@@ -39,7 +39,7 @@ def session_to_nwb(
         - ``BBC300_Acq_*.doric``           — raw Doric photometry
         - ``interpolated_campy_and_doric_data.mat`` — processed dF/F
         - ``DANNCE/save_data_AVG0.mat``    — DANNCE pose output
-        - ``calibration/calibration.json`` — 6-camera calibration
+        - ``calibration/calibration.json`` — 6-camera calibration (+ hires_camN_params.mat)
         - ``videos/Camera{1..6}/0.mp4``    — per-camera videos
         - ``videos/Camera1/frametimes.npy``— per-frame timestamps
     output_dir_path : str or Path
@@ -97,11 +97,19 @@ def session_to_nwb(
     source_data["PCampiSync"] = dict(file_path=str(pcampi_file))
     conversion_options["PCampiSync"] = dict(stub_test=stub_test)
 
-    # Raw Doric photometry (always present)
-    source_data["DoricPhotometry"] = dict(file_path=str(doric_file))
-    conversion_options["DoricPhotometry"] = dict(
-        stub_test=stub_test, timing_source="aligned_timestamps"
-    )
+    # Raw Doric photometry (always present): one interface per ROI x excitation channel,
+    # each writing a single FiberPhotometryResponseSeries sharing one FiberPhotometryTable
+    # (see _metadata/fiber_photometry.yaml for the matching metadata_key entries).
+    for key, stream_name, metadata_key in [
+        ("DoricEXC1ROI01", "BBC300_ROISignals_Series0001_CAM1EXC1_ROI01", "fiber_photometry_EXC1_ROI01"),
+        ("DoricEXC2ROI01", "BBC300_ROISignals_Series0001_CAM1EXC2_ROI01", "fiber_photometry_EXC2_ROI01"),
+        ("DoricEXC1ROI02", "BBC300_ROISignals_Series0001_CAM1EXC1_ROI02", "fiber_photometry_EXC1_ROI02"),
+        ("DoricEXC2ROI02", "BBC300_ROISignals_Series0001_CAM1EXC2_ROI02", "fiber_photometry_EXC2_ROI02"),
+    ]:
+        source_data[key] = dict(
+            file_path=str(doric_file), stream_names=stream_name, metadata_key=metadata_key
+        )
+        conversion_options[key] = dict(stub_test=stub_test)
 
     # Processed dF/F (present when pipeline has been run)
     if processed_mat.is_file() and frametimes_npy.is_file():
@@ -111,27 +119,27 @@ def session_to_nwb(
         )
         conversion_options["DoricProcessed"] = dict(stub_test=stub_test)
 
-    # DANNCE pose estimation
+    # DANNCE pose estimation + 6-camera video (combined via DANNCEConverter)
     if dannce_mat.is_file() and frametimes_npy.is_file():
+        video_file_paths = {}
+        for cam_idx in range(1, 7):
+            mp4 = session_dir_path / "videos" / f"Camera{cam_idx}" / "0.mp4"
+            if mp4.is_file():
+                video_file_paths[f"Camera{cam_idx}"] = [str(mp4)]
+
         source_data["DANNCE"] = dict(
             file_path=str(dannce_mat),
+            video_file_paths=video_file_paths,
             frametimes_file_path=str(frametimes_npy),
             subject_name=subject_id,
             animal_index=0,
         )
+        calibration_path = session_dir_path / "calibration"
+        if calibration_path.is_dir():
+            source_data["DANNCE"]["calibration_path"] = str(calibration_path)
+        # DANNCEConverter writes video in full regardless of stub_test; only the DANNCE
+        # pose predictions are truncated for quick smoke testing.
         conversion_options["DANNCE"] = dict(stub_test=stub_test)
-
-    # 6-camera video
-    for cam_idx in range(1, 7):
-        mp4 = session_dir_path / "videos" / f"Camera{cam_idx}" / "0.mp4"
-        if mp4.is_file():
-            key = f"VideoCamera{cam_idx}"
-            source_data[key] = dict(
-                file_paths=[str(mp4)],
-                video_name=f"VideoCamera{cam_idx}",
-            )
-            # ExternalVideoInterface stores video as a file path reference — no stub needed
-            conversion_options[key] = dict()
 
     # ── Instantiate converter ────────────────────────────────────────────────
     converter = Phillips2025NWBConverter(source_data=source_data, verbose=verbose)
@@ -147,13 +155,39 @@ def session_to_nwb(
         ].replace(tzinfo=_TIMEZONE)
 
     # Layer 3: lab-level YAML metadata
-    yaml_path = Path(__file__).parent / "_metadata" / "phillips_2025_metadata.yaml"
+    yaml_path = Path(__file__).parent / "general_metadata.yaml"
     editable_metadata = load_dict_from_file(yaml_path)
     metadata = dict_deep_update(metadata, editable_metadata)
 
     # Layer 3b: fiber photometry hardware metadata
     fp_yaml_path = Path(__file__).parent / "_metadata" / "fiber_photometry.yaml"
     metadata = dict_deep_update(metadata, load_dict_from_file(fp_yaml_path))
+
+    # Each DoricFiberPhotometryInterface seeds a placeholder "row0" FiberPhotometryTable row
+    # and "indicator" FiberPhotometryIndicators entry by default (get_default_fiber_photometry_
+    # metadata()); fiber_photometry.yaml defines the real rows/indicators under different keys
+    # (row_EXC{1,2}ROI{01,02}, GRABDA3m/tdTomato), so the placeholders survive the deep-merge
+    # above, unreferenced by any series. Drop them.
+    metadata["FiberPhotometry"]["FiberPhotometryTable"]["rows"].pop("row0", None)
+    metadata["FiberPhotometry"]["FiberPhotometryIndicators"].pop("indicator", None)
+    # Same default-scaffold placeholders exist for the top-level Devices/DeviceModels
+    # registries added_fiber_photometry_devices() would otherwise write unreferenced.
+    for _key in ("optical_fiber", "excitation_source", "photodetector"):
+        metadata["Devices"].pop(_key, None)
+    for _key in ("optical_fiber_model", "excitation_source_model", "photodetector_model"):
+        metadata["DeviceModels"].pop(_key, None)
+
+    # dict_deep_update concatenates lists rather than replacing them, so each series'
+    # fiber_photometry_table_region ends up as ["row0", "row_EXC..."] after the merge above;
+    # reset it to just the real row now that "row0" itself has been dropped.
+    _fp_table_region_by_key = {
+        "fiber_photometry_EXC1_ROI01": ["row_EXC1_ROI01"],
+        "fiber_photometry_EXC2_ROI01": ["row_EXC2_ROI01"],
+        "fiber_photometry_EXC1_ROI02": ["row_EXC1_ROI02"],
+        "fiber_photometry_EXC2_ROI02": ["row_EXC2_ROI02"],
+    }
+    for _key, _region in _fp_table_region_by_key.items():
+        metadata["FiberPhotometry"][_key]["fiber_photometry_table_region"] = _region
 
     # Layer 4: session-specific overrides
     metadata["NWBFile"]["session_id"] = session_id

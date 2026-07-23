@@ -45,12 +45,22 @@ Lone_data/
 
 | Stream | Format | Acquisition | NeuroConv Interface |
 | ------ | ------ | ----------- | ------------------- |
-| Raw fiber photometry | Doric `.doric` (HDF5) | Doric BBC300 | `DoricFiberPhotometryInterface` (neuroconv) |
+| Raw fiber photometry | Doric `.doric` (HDF5) | Doric BBC300 | `DoricFiberPhotometryInterface` × 4 (neuroconv) — one instance per ROI × excitation channel |
 | Raw interpolated photometry | `.mat` (lab pipeline) | Uchida lab MATLAB | `DoricProcessedPhotometryInterface` (custom) — **needs revision, see below** |
 | pCampi sync | Custom `.h5` (NIDAQ) | LabVIEW at 1 kHz | `PCampiSyncInterface` (custom) |
-| 3D pose | DANNCE `.mat` (23 kpts) | DANNCE inference | `SDANNCEInterface` (neuroconv) |
-| 6-camera video | `.mp4` per camera | Basler a2A1920-160ucPRO via campy | `ExternalVideoInterface` × 6 (neuroconv) |
-| Camera calibration | JSON + `.mat` | — | not written to NWB (used by DANNCE internally) |
+| 3D pose + 6-camera video | DANNCE `.mat` (23 kpts) + `.mp4` per camera | DANNCE inference; Basler a2A1920-160ucPRO via campy | `DANNCEConverter` (neuroconv) — combines pose + per-camera source video + calibrated Device, linked automatically |
+| Camera calibration | JSON + `.mat` (`hires_camN_params.mat`) | — | consumed by `DANNCEConverter` (`calibration_path`) to create calibrated camera Devices |
+
+**2026-07-23 update:** Migrated pose/video from `SDANNCEInterface` + 6× `ExternalVideoInterface`
+to the newly-added `neuroconv.converters.DANNCEConverter` (pattern taken from
+`olveczky-lab-to-nwb`'s `klibaite_2025_rat` conversion), which wires video-to-DANNCE linking and
+calibrated camera Devices internally. Also updated `DoricFiberPhotometryInterface` usage to its
+current signature (`stream_names` + `metadata_key`, one interface per response series instead of
+one interface for all 4 channels) — this had drifted since the interface was last touched, so
+`_metadata/fiber_photometry.yaml` was rewritten to match the current top-level
+`Devices`/`DeviceModels`/`FiberPhotometryTable` metadata schema. Required upgrading `ndx-pose` to
+≥0.3.0 (installed 0.4.0, editable from local checkout) — the DANNCE interface hard-requires it.
+Verified end-to-end (stub conversion + nwbinspector) against the real M4 day_1 session data.
 
 ## Doric File Structure (raw photometry)
 
@@ -178,8 +188,10 @@ Output filename convention: `sub-{subject_id}_ses-{YYMMDD_HHMMSS}_{subject_id}.n
 
 ## Key Dependencies
 
-- `neuroconv` — `add-dannce-interface` branch for `SDANNCEInterface` (pending merge to main)
-- `ndx-fiber-photometry`, `ndx-ophys-devices ≥ 0.3.1`, `ndx-pose`
+- `neuroconv` — `DANNCEConverter` / `DANNCEInterface` (local checkout, `C:\Users\amtra\CatalystNeuro\neuroconv`)
+- `ndx-fiber-photometry`, `ndx-ophys-devices ≥ 0.3.1`
+- `ndx-pose ≥ 0.3.0` — required by `DANNCEInterface`; installed as editable from
+  `C:\Users\amtra\CatalystNeuro\ndx-pose` (0.4.0) since the conda env had 0.2.2
 - `DoricFiberPhotometryInterface` imported from neuroconv main (as of `reviews_part_1` branch)
 
 ## Open Questions

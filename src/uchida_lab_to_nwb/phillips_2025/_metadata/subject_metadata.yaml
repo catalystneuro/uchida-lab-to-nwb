@@ -21,7 +21,7 @@ M4:
   date_of_birth: 2024-01-18
   description: >-
     Wildtype Long Evans rat (experimental group: WT, SFARI ARC).
-    Surgery date: 2024-05-01. Weight at experiment time: not recorded.
+    Surgery date: 2024-05-01.
 
 M5:
   subject_id: M5
@@ -32,7 +32,7 @@ M5:
   date_of_birth: 2024-01-18
   description: >-
     Wildtype Long Evans rat (experimental group: WT, SFARI ARC).
-    Surgery date: 2024-05-14. Weight at experiment time: not recorded.
+    Surgery date: 2024-05-14.
 
 M7:
   subject_id: M7
@@ -43,4 +43,4 @@ M7:
   date_of_birth: 2024-01-18
   description: >-
     Wildtype Long Evans rat (experimental group: WT, SFARI ARC).
-    Surgery date: 2024-05-16. Weight at experiment time: not recorded.
+    Surgery date: 2024-05-16.

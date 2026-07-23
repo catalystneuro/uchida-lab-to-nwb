@@ -2,11 +2,8 @@
 
 import numpy as np
 from neuroconv import NWBConverter
-from neuroconv.datainterfaces import (
-    ExternalVideoInterface,
-    SDANNCEInterface,
-    DoricFiberPhotometryInterface,
-)
+from neuroconv.converters import DANNCEConverter
+from neuroconv.datainterfaces import DoricFiberPhotometryInterface
 from scipy.interpolate import interp1d
 
 from uchida_lab_to_nwb.phillips_2025.interfaces import (
@@ -14,19 +11,19 @@ from uchida_lab_to_nwb.phillips_2025.interfaces import (
     PCampiSyncInterface,
 )
 
-# One ExternalVideoInterface entry per camera
-_CAMERA_NAMES = [f"VideoCamera{i}" for i in range(1, 7)]
-
 
 class Phillips2025NWBConverter(NWBConverter):
     """Primary conversion class for the Uchida Lab SFARI ARC dataset.
 
     Data streams:
-    - DoricPhotometry: raw fiber photometry from Doric BBC300 (.doric)
+    - DoricEXC{1,2}ROI{01,02}: raw fiber photometry from Doric BBC300 (.doric), one
+      ``DoricFiberPhotometryInterface`` per ROI × excitation channel (4 total; each writes a
+      single ``FiberPhotometryResponseSeries`` sharing one ``FiberPhotometryTable``).
     - DoricProcessed: lab-processed dF/F traces (interpolated_campy_and_doric_data.mat)
     - PCampiSync: pCampi LabVIEW TTL synchronization pulses (.h5)
-    - DANNCE: 3D pose estimation (save_data_AVG0.mat)
-    - VideoCamera1–6: 6-camera behavioral video (.mp4 per camera)
+    - DANNCE: 3D pose estimation (save_data_AVG0.mat) combined with the 6-camera behavioral
+      video (.mp4 per camera, external link) via ``DANNCEConverter``, which links each camera's
+      source video and calibrated Device (from calibration/calibration.json) automatically.
 
     Temporal alignment (pCampi clock as reference):
     - Video timestamps: from campy_trigger rising edges in pCampi H5
@@ -37,16 +34,13 @@ class Phillips2025NWBConverter(NWBConverter):
     """
 
     data_interface_classes = dict(
-        DoricPhotometry=DoricFiberPhotometryInterface,
+        DoricEXC1ROI01=DoricFiberPhotometryInterface,
+        DoricEXC2ROI01=DoricFiberPhotometryInterface,
+        DoricEXC1ROI02=DoricFiberPhotometryInterface,
+        DoricEXC2ROI02=DoricFiberPhotometryInterface,
         DoricProcessed=DoricProcessedPhotometryInterface,
         PCampiSync=PCampiSyncInterface,
-        DANNCE=SDANNCEInterface,
-        VideoCamera1=ExternalVideoInterface,
-        VideoCamera2=ExternalVideoInterface,
-        VideoCamera3=ExternalVideoInterface,
-        VideoCamera4=ExternalVideoInterface,
-        VideoCamera5=ExternalVideoInterface,
-        VideoCamera6=ExternalVideoInterface,
+        DANNCE=DANNCEConverter,
     )
 
     def temporally_align_data_interfaces(self, metadata=None, conversion_options=None):
@@ -71,13 +65,20 @@ class Phillips2025NWBConverter(NWBConverter):
         doric_times_pcampi = pcampi.get_doric_frame_rising_edges()
 
         # ── Step 3 & 4: Align Doric clock to pCampi clock ────────────────────
-        if "DoricPhotometry" in self.data_interface_objects:
-            doric = self.data_interface_objects["DoricPhotometry"]
-
-            # Extract Camera1 DigitalIO rising edges from the Doric clock
-            cam1_data, cam1_time = doric._load_stream_array(
-                "BBC300_Signals_Series0001_DigitalIO_Camera1"
-            )
+        # Each ROI x excitation channel is its own DoricFiberPhotometryInterface instance, but
+        # all four read from the same .doric file and so discover the same full set of streams
+        # (including the Camera1 DigitalIO sync pulse, which none of them own as their primary
+        # stream) -- any one of them can be used to look up that shared sync stream.
+        doric_interfaces = [
+            interface
+            for interface in self.data_interface_objects.values()
+            if isinstance(interface, DoricFiberPhotometryInterface)
+        ]
+        if doric_interfaces:
+            reference_doric = doric_interfaces[0]
+            sync_stream = "BBC300_Signals_Series0001_DigitalIO_Camera1"
+            cam1_data = reference_doric._get_stream_data(stream_name=sync_stream)
+            cam1_time = reference_doric._get_stream_timestamps(stream_name=sync_stream)
             edges = np.where(np.diff((cam1_data > 0.5).astype(np.int8)) > 0)[0]
             doric_times_doric = cam1_time[edges]
 
@@ -89,33 +90,30 @@ class Phillips2025NWBConverter(NWBConverter):
                     kind="linear",
                     fill_value="extrapolate",
                 )
-                original_timestamps = doric.get_original_timestamps()
-                doric.set_aligned_timestamps(
-                    {
-                        name: doric_to_pcampi(ts)
-                        for name, ts in original_timestamps.items()
-                    }
-                )
+                for doric in doric_interfaces:
+                    doric.set_aligned_timestamps(doric_to_pcampi(doric.get_original_timestamps()))
 
-        # ── Step 5: Align video cameras to campy_trigger ─────────────────────
+        # ── Step 5 & 5b: Align video cameras and DANNCE to campy_trigger ─────
+        # DANNCEConverter wraps one DANNCEInterface (key "DANNCE") and one
+        # ExternalVideoInterface per camera (keys "VideoCamera1".."VideoCamera6") in its own
+        # data_interface_objects. Both load their own timestamps at construction time
+        # (frametimes.npy directly); here we replace them with the pCampi-aligned
+        # campy_trigger times for consistency across all streams.
         n_frames = len(campy_frame_times)
-        for cam_key in _CAMERA_NAMES:
-            if cam_key in self.data_interface_objects:
-                video_iface = self.data_interface_objects[cam_key]
-                # ExternalVideoInterface expects a list-of-arrays, one per video file
-                video_iface.set_aligned_timestamps([campy_frame_times])
-
-        # ── Step 5b: Align DANNCE to video timestamps ─────────────────────────
-        # SDANNCEInterface sets its own timestamps from frametimes.npy during __init__;
-        # here we replace them with the pCampi-aligned campy_trigger times for consistency.
-        if "DANNCE" in self.data_interface_objects:
-            dannce = self.data_interface_objects["DANNCE"]
-            sample_ids = dannce._sample_id.astype(int)  # 0-based frame indices
-            # Guard against frame indices beyond the trigger count
-            valid = sample_ids < n_frames
-            aligned = np.full(len(sample_ids), np.nan)
-            aligned[valid] = campy_frame_times[sample_ids[valid]]
-            dannce.set_aligned_timestamps(aligned)
+        dannce_converter = self.data_interface_objects.get("DANNCE")
+        if dannce_converter is not None:
+            for interface_name, sub_interface in dannce_converter.data_interface_objects.items():
+                if interface_name.startswith("Video"):
+                    # ExternalVideoInterface expects a list-of-arrays, one per video file
+                    sub_interface.set_aligned_timestamps([campy_frame_times])
+                else:
+                    # DANNCEInterface: reindex campy_trigger times via each prediction's sampleID
+                    sample_ids = sub_interface._sample_id.astype(int)  # 0-based frame indices
+                    # Guard against frame indices beyond the trigger count
+                    valid = sample_ids < n_frames
+                    aligned = np.full(len(sample_ids), np.nan)
+                    aligned[valid] = campy_frame_times[sample_ids[valid]]
+                    sub_interface.set_aligned_timestamps(aligned)
 
         # ── Step 6: Align processed dF/F to video timestamps ─────────────────
         if "DoricProcessed" in self.data_interface_objects:
