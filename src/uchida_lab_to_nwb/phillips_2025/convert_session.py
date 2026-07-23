@@ -99,17 +99,33 @@ def session_to_nwb(
 
     # Raw Doric photometry (always present): one interface per ROI x channel, each writing a
     # single FiberPhotometryResponseSeries sharing one FiberPhotometryTable (see
-    # _metadata/fiber_photometry.yaml for the matching metadata_key entries). Keys use
-    # functional roles rather than raw hardware channel names: EXC1 -> control (tdTomato),
-    # EXC2 -> dopamine_signal (GRABDA3m); ROI01 -> NAc, ROI02 -> TS.
+    # _metadata/fiber_photometry.yaml for the matching metadata_key entries).
     for key, stream_name, metadata_key in [
-        ("DoricControlNAc", "BBC300_ROISignals_Series0001_CAM1EXC1_ROI01", "fiber_photometry_control_NAc"),
-        ("DoricDopamineSignalNAc", "BBC300_ROISignals_Series0001_CAM1EXC2_ROI01", "fiber_photometry_dopamine_signal_NAc"),
-        ("DoricControlTS", "BBC300_ROISignals_Series0001_CAM1EXC1_ROI02", "fiber_photometry_control_TS"),
-        ("DoricDopamineSignalTS", "BBC300_ROISignals_Series0001_CAM1EXC2_ROI02", "fiber_photometry_dopamine_signal_TS"),
+        (
+            "DoricControlNAc",
+            "BBC300_ROISignals_Series0001_CAM1EXC1_ROI01",
+            "fiber_photometry_control_NAc",
+        ),
+        (
+            "DoricDopamineSignalNAc",
+            "BBC300_ROISignals_Series0001_CAM1EXC2_ROI01",
+            "fiber_photometry_dopamine_signal_NAc",
+        ),
+        (
+            "DoricControlTS",
+            "BBC300_ROISignals_Series0001_CAM1EXC1_ROI02",
+            "fiber_photometry_control_TS",
+        ),
+        (
+            "DoricDopamineSignalTS",
+            "BBC300_ROISignals_Series0001_CAM1EXC2_ROI02",
+            "fiber_photometry_dopamine_signal_TS",
+        ),
     ]:
         source_data[key] = dict(
-            file_path=str(doric_file), stream_names=stream_name, metadata_key=metadata_key
+            file_path=str(doric_file),
+            stream_names=stream_name,
+            metadata_key=metadata_key,
         )
         conversion_options[key] = dict(stub_test=stub_test)
 
@@ -176,7 +192,11 @@ def session_to_nwb(
     # registries added_fiber_photometry_devices() would otherwise write unreferenced.
     for _key in ("optical_fiber", "excitation_source", "photodetector"):
         metadata["Devices"].pop(_key, None)
-    for _key in ("optical_fiber_model", "excitation_source_model", "photodetector_model"):
+    for _key in (
+        "optical_fiber_model",
+        "excitation_source_model",
+        "photodetector_model",
+    ):
         metadata["DeviceModels"].pop(_key, None)
 
     # dict_deep_update concatenates lists rather than replacing them, so each series'
