@@ -16,9 +16,11 @@ class Phillips2025NWBConverter(NWBConverter):
     """Primary conversion class for the Uchida Lab SFARI ARC dataset.
 
     Data streams:
-    - DoricEXC{1,2}ROI{01,02}: raw fiber photometry from Doric BBC300 (.doric), one
-      ``DoricFiberPhotometryInterface`` per ROI × excitation channel (4 total; each writes a
-      single ``FiberPhotometryResponseSeries`` sharing one ``FiberPhotometryTable``).
+    - Doric{Control,DopamineSignal}{NAc,TS}: raw fiber photometry from Doric BBC300 (.doric),
+      one ``DoricFiberPhotometryInterface`` per ROI × channel (4 total; each writes a single
+      ``FiberPhotometryResponseSeries`` sharing one ``FiberPhotometryTable``). Keys use
+      functional roles rather than raw hardware channel names: EXC1 -> control (tdTomato),
+      EXC2 -> dopamine_signal (GRABDA3m); ROI01 -> NAc, ROI02 -> TS.
     - DoricProcessed: lab-processed dF/F traces (interpolated_campy_and_doric_data.mat)
     - PCampiSync: pCampi LabVIEW TTL synchronization pulses (.h5)
     - DANNCE: 3D pose estimation (save_data_AVG0.mat) combined with the 6-camera behavioral
@@ -34,10 +36,10 @@ class Phillips2025NWBConverter(NWBConverter):
     """
 
     data_interface_classes = dict(
-        DoricEXC1ROI01=DoricFiberPhotometryInterface,
-        DoricEXC2ROI01=DoricFiberPhotometryInterface,
-        DoricEXC1ROI02=DoricFiberPhotometryInterface,
-        DoricEXC2ROI02=DoricFiberPhotometryInterface,
+        DoricControlNAc=DoricFiberPhotometryInterface,
+        DoricDopamineSignalNAc=DoricFiberPhotometryInterface,
+        DoricControlTS=DoricFiberPhotometryInterface,
+        DoricDopamineSignalTS=DoricFiberPhotometryInterface,
         DoricProcessed=DoricProcessedPhotometryInterface,
         PCampiSync=PCampiSyncInterface,
         DANNCE=DANNCEConverter,
@@ -65,7 +67,7 @@ class Phillips2025NWBConverter(NWBConverter):
         doric_times_pcampi = pcampi.get_doric_frame_rising_edges()
 
         # ── Step 3 & 4: Align Doric clock to pCampi clock ────────────────────
-        # Each ROI x excitation channel is its own DoricFiberPhotometryInterface instance, but
+        # Each ROI x channel is its own DoricFiberPhotometryInterface instance, but
         # all four read from the same .doric file and so discover the same full set of streams
         # (including the Camera1 DigitalIO sync pulse, which none of them own as their primary
         # stream) -- any one of them can be used to look up that shared sync stream.

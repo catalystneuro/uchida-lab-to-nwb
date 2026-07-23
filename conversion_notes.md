@@ -45,7 +45,7 @@ Lone_data/
 
 | Stream | Format | Acquisition | NeuroConv Interface |
 | ------ | ------ | ----------- | ------------------- |
-| Raw fiber photometry | Doric `.doric` (HDF5) | Doric BBC300 | `DoricFiberPhotometryInterface` × 4 (neuroconv) — one instance per ROI × excitation channel |
+| Raw fiber photometry | Doric `.doric` (HDF5) | Doric BBC300 | `DoricFiberPhotometryInterface` × 4 (neuroconv) — one instance per ROI × channel |
 | Raw interpolated photometry | `.mat` (lab pipeline) | Uchida lab MATLAB | `DoricProcessedPhotometryInterface` (custom) — **needs revision, see below** |
 | pCampi sync | Custom `.h5` (NIDAQ) | LabVIEW at 1 kHz | `PCampiSyncInterface` (custom) |
 | 3D pose + 6-camera video | DANNCE `.mat` (23 kpts) + `.mp4` per camera | DANNCE inference; Basler a2A1920-160ucPRO via campy | `DANNCEConverter` (neuroconv) — combines pose + per-camera source video + calibrated Device, linked automatically |
@@ -61,6 +61,14 @@ one interface for all 4 channels) — this had drifted since the interface was l
 `Devices`/`DeviceModels`/`FiberPhotometryTable` metadata schema. Required upgrading `ndx-pose` to
 ≥0.3.0 (installed 0.4.0, editable from local checkout) — the DANNCE interface hard-requires it.
 Verified end-to-end (stub conversion + nwbinspector) against the real M4 day_1 session data.
+
+Also renamed all Doric metadata/device/interface keys from raw hardware channel names to
+functional roles (confirmed with the team): `EXC1` → `control` (tdTomato), `EXC2` →
+`dopamine_signal` (GRABDA3m); `ROI01` → `NAc`, `ROI02` → `TS` (also replaced the
+`FiberPhotometryTable` `location` value `"Tail of Striatum"` with `"TS"`). Applies throughout
+`nwbconverter.py`, `convert_session.py`, and `_metadata/fiber_photometry.yaml` — e.g.
+`DoricEXC1ROI01` → `DoricControlNAc`, `excitation_source_EXC1` → `excitation_source_control`,
+`optical_fiber_ROI01` → `optical_fiber_NAc`.
 
 ## Doric File Structure (raw photometry)
 
