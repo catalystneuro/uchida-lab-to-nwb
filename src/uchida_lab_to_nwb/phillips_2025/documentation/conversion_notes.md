@@ -25,7 +25,7 @@ facility; see `olveczky-lab-to-nwb`).
 |---|---|---|---|
 | Raw fiber photometry | Doric `.doric` (HDF5) | Doric BBC300 | `DoricFiberPhotometryInterface` (neuroconv) — one instance per channel (control, dopamine_signal), each writing a 2-column (NAc, TS) `FiberPhotometryResponseSeries` |
 | Lab-processed (interpolated) photometry | `interpolated_campy_and_doric.mat` (MATLAB v7.3) | Uchida lab MATLAB pipeline | `ProcessedFiberPhotometryInterface` (custom) — one instance per channel, writes to `processing/ophys`, reusing the raw interfaces' `FiberPhotometryTable` |
-| pCampi sync | Custom `.h5` (NIDAQ) | LabVIEW at 1 kHz | `PCampiSyncInterface` (custom) — also the source of `session_start_time` |
+| pCampi sync | Custom `.h5` (NIDAQ) | LabVIEW at 1 kHz | `PCampiSyncInterface` (custom) — one instance per digital channel (`channel_name` required at init; `get_available_channels()` discovers them); also the source of `session_start_time` |
 | 3D pose + 6-camera video | DANNCE `.mat` (23 keypoints) + `.mp4` per camera | DANNCE inference; Basler a2A1920-160ucPRO via campy | `DANNCEConverter` (neuroconv) — combines pose, per-camera source video, and calibrated `Device`s |
 | Camera calibration | JSON + `.mat` (`hires_camN_params.mat`) | — | consumed by `DANNCEConverter` (`calibration_path`) |
 | Subject metadata | XLSX (lab-provided) | `Subject metadata.xlsx` | `Subject`, via `utils/subject_metadata.get_subject_metadata()` |
@@ -156,17 +156,20 @@ Raw Doric fiber photometry (`DoricFiberPhotometryInterface`) and DANNCE pose + v
 |---|---|---|
 | `DoricFiberPhotometryInterface` (neuroconv, ×2: `DoricControl`, `DoricDopamineSignal`) | 2 `FiberPhotometryResponseSeries` in `acquisition`, each with 2 columns (NAc, TS) | One instance per excitation channel (EXC1=control/tdTomato 568 nm, EXC2=dopamine_signal/GRABDA3m 473 nm); each column-stacks 2 ROI streams via a 2-element `stream_names` list. Shares one `FiberPhotometryTable` (4 rows: 2 ROIs × 2 channels) defined in `fiber_photometry.yaml`. |
 | `ProcessedFiberPhotometryInterface` (custom, ×2: `ProcessedControl`, `ProcessedDopamineSignal`) | 2 `FiberPhotometryResponseSeries` in `processing/ophys` | Reads `interpolated_campy_and_doric.mat` (raw fluorescence resampled to video rate, not dF/F); reuses the raw interfaces' `FiberPhotometryTable` rows. No embedded timestamps — generates a nominal regular series from the camera frame rate (read from `videos/Camera1/metadata.csv`). Only present when the `.mat` file and `videos/` folder both exist. |
-| `PCampiSyncInterface` (custom) | 2 `TimeSeries` (`SyncTTL_campy_trigger`, `SyncTTL_rbfmc_frames`) in `acquisition` | Also the **only** interface that sets `NWBFile.session_start_time` (parsed from the pCampi filename). Channel 0 = camera trigger pulses; channel 1 = Doric BBC300 Camera1 output pulses (intended for Doric-clock alignment; see Temporal Alignment — currently unusable). |
+| `PCampiSyncInterface` (custom, ×2: `PCampiSyncCampyTrigger`, `PCampiSyncRbfmcFrames`) | 1 `TimeSeries` each (`SyncTTL_campy_trigger`, `SyncTTL_rbfmc_frames`) in `acquisition` | Writes one channel per instance — takes no assumptions about channel names or count; `channel_name` is required at init, and `get_available_channels(file_path)` discovers the channels present in a given `.h5` file. `convert_session.py` instantiates one interface per channel found. Also the **only** interface class that sets `NWBFile.session_start_time` (parsed from the pCampi filename). `campy_trigger` = camera trigger pulses; `rbfmc_frames` = intended Doric BBC300 Camera1 output pulses, but reads as all-zero (see Temporal Alignment). |
 | `DANNCEConverter` (neuroconv) | `PoseEstimation` (ndx-pose) in `processing/behavior` + 6 `ImageSeries` (external video) + calibrated `Device`s | Reads `DANNCE/save_data_AVG0.mat` (`animal_index=0` for Lone sessions); no `frametimes_file_path` passed — pose timestamps computed from `sampleID`/sampling rate, video keeps each camera's own native per-frame timestamps. Skeleton (`SDANNCE_LANDMARK_NAMES`/`SDANNCE_SKELETON_EDGES` from `utils/constants.py`) is injected into `Behavior/Pose` metadata at conversion time (`session_to_nwb()`), keyed by `pose_key` ("PoseEstimationDANNCE"). |
 
-`Phillips2025NWBConverter` (`nwbconverter.py`) registers 6 interface slots:
+`Phillips2025NWBConverter` (`nwbconverter.py`) registers 7 interface slots:
 `DoricControl`, `DoricDopamineSignal`, `ProcessedControl`, `ProcessedDopamineSignal`,
-`PCampiSync`, `DANNCE`. `convert_session.py::session_to_nwb()` discovers the files present in one
-subject-session directory, conditionally includes the processed-photometry and DANNCE interfaces
-only when their source files exist, and merges `general_metadata.yaml` + `fiber_photometry.yaml`
-+ caller-supplied `subject_metadata` into one NWB file. `convert_all_sessions.py` batches this
-over every `day_*/M*/` directory with both a `.h5` and a `.doric` file present, resolving each
-subject's metadata via `get_subject_metadata()` (warning + fallback if missing), using
+`PCampiSyncCampyTrigger`, `PCampiSyncRbfmcFrames`, `DANNCE`. `convert_session.py::session_to_nwb()`
+discovers the files present in one subject-session directory, conditionally includes the
+processed-photometry and DANNCE interfaces only when their source files exist, discovers the
+pCampi channels present via `PCampiSyncInterface.get_available_channels()` and maps each to its
+interface slot via `_PCAMPI_CHANNEL_TO_INTERFACE_KEY` (raising if an unrecognized channel name
+is encountered), and merges `general_metadata.yaml` + `fiber_photometry.yaml` + caller-supplied
+`subject_metadata` into one NWB file. `convert_all_sessions.py` batches this over every
+`day_*/M*/` directory with both a `.h5` and a `.doric` file present, resolving each subject's
+metadata via `get_subject_metadata()` (warning + fallback if missing), using
 `ProcessPoolExecutor` and per-subject error capture to a file.
 
 Dependencies (`pyproject.toml`, `[phillips_2025]` extra): `neuroconv` (from the

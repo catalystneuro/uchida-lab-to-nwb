@@ -24,7 +24,10 @@ class Phillips2025NWBConverter(NWBConverter):
       ``ProcessedFiberPhotometryInterface`` per channel (interpolated_campy_and_doric.mat).
       Raw ROI fluorescence (not dF/F); written to processing/ophys, reusing the
       FiberPhotometryTable created by the raw Doric interfaces.
-    - PCampiSync: pCampi LabVIEW TTL synchronization pulses (.h5)
+    - PCampiSync{CampyTrigger,RbfmcFrames}: pCampi LabVIEW TTL synchronization pulses (.h5), one
+      ``PCampiSyncInterface`` per digital channel (see ``interfaces/pcampi_sync_interface.py``;
+      ``PCampiSyncInterface.get_available_channels()`` discovers the channel names in a given
+      file).
     - DANNCE: 3D pose estimation (save_data_AVG0.mat) combined with the 6-camera behavioral
       video (.mp4 per camera, external link) via ``DANNCEConverter``, which links each camera's
       source video and calibrated Device (from calibration/calibration.json) automatically.
@@ -40,6 +43,12 @@ class Phillips2025NWBConverter(NWBConverter):
         DoricDopamineSignal=DoricFiberPhotometryInterface,
         ProcessedControl=ProcessedFiberPhotometryInterface,
         ProcessedDopamineSignal=ProcessedFiberPhotometryInterface,
-        PCampiSync=PCampiSyncInterface,
+        PCampiSyncCampyTrigger=PCampiSyncInterface,
+        PCampiSyncRbfmcFrames=PCampiSyncInterface,
         DANNCE=DANNCEConverter,
     )
+
+    def temporally_align_data_interfaces(
+        self, metadata: dict | None = None, conversion_options: dict | None = None
+    ):
+        pass

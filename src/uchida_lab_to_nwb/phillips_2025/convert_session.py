@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 
+from uchida_lab_to_nwb.phillips_2025.interfaces import PCampiSyncInterface
 from uchida_lab_to_nwb.phillips_2025.nwbconverter import (
     Phillips2025NWBConverter,
 )
@@ -22,6 +23,13 @@ _TIMEZONE = ZoneInfo("America/New_York")
 
 # pCampi filename pattern: YYMMDD_HHMMSS_M{id}.h5
 _PCAMPI_PATTERN = re.compile(r"(\d{6}_\d{6})_(M\d+)\.h5")
+
+# Maps pCampi digital channel names (as read from the .h5 file) to the interface slot each
+# is registered under in Phillips2025NWBConverter.data_interface_classes.
+_PCAMPI_CHANNEL_TO_INTERFACE_KEY = {
+    "campy_trigger": "PCampiSyncCampyTrigger",
+    "rbfmc_frames": "PCampiSyncRbfmcFrames",
+}
 
 
 def _read_camera_frame_rate(videos_folder_path: Path) -> float:
@@ -117,9 +125,18 @@ def session_to_nwb(
     source_data = {}
     conversion_options = {}
 
-    # pCampi sync (always present)
-    source_data["PCampiSync"] = dict(file_path=str(pcampi_file))
-    conversion_options["PCampiSync"] = dict(stub_test=stub_test)
+    # pCampi sync (always present): one PCampiSyncInterface per digital TTL channel found in
+    # the h5 file.
+    for channel_name in PCampiSyncInterface.get_available_channels(pcampi_file):
+        if channel_name not in _PCAMPI_CHANNEL_TO_INTERFACE_KEY:
+            raise ValueError(
+                f"Unrecognized pCampi channel {channel_name!r} in {pcampi_file}. "
+                f"Add it to _PCAMPI_CHANNEL_TO_INTERFACE_KEY and register a matching slot in "
+                "Phillips2025NWBConverter.data_interface_classes."
+            )
+        key = _PCAMPI_CHANNEL_TO_INTERFACE_KEY[channel_name]
+        source_data[key] = dict(file_path=str(pcampi_file), channel_name=channel_name)
+        conversion_options[key] = dict(stub_test=stub_test)
 
     # Raw Doric photometry (always present): one interface per channel, each writing a single
     # FiberPhotometryResponseSeries whose two columns are the NAc and TS ROIs (column-stacked
