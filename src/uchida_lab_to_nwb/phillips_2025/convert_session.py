@@ -20,8 +20,9 @@ _TIMEZONE = ZoneInfo("America/New_York")
 _PCAMPI_PATTERN = re.compile(r"(\d{6}_\d{6})_(M\d+)\.h5")
 
 
-def _read_camera_frame_rate(metadata_csv_path: Path) -> float:
+def _read_camera_frame_rate(videos_folder_path: Path) -> float:
     """Read the ``frameRate`` field (Hz) from a campy ``metadata.csv`` file."""
+    metadata_csv_path = videos_folder_path / "Camera1" / "metadata.csv"
     with open(metadata_csv_path, newline="") as f:
         for key, value in csv.reader(f):
             if key == "frameRate":
@@ -90,7 +91,7 @@ def session_to_nwb(
 
     processed_mat = session_dir_path / "interpolated_campy_and_doric.mat"
     dannce_mat = session_dir_path / "DANNCE" / "save_data_AVG0.mat"
-    camera1_metadata_csv = session_dir_path / "videos" / "Camera1" / "metadata.csv"
+    videos_folder_path = session_dir_path / "videos"
 
     # ── Parse session_id and subject_id from pCampi filename ─────────────────
     m = _PCAMPI_PATTERN.match(pcampi_file.name)
@@ -148,8 +149,8 @@ def session_to_nwb(
 
     # Processed (interpolated) fiber photometry (present when pipeline has been run): one
     # interface per channel, mirroring the raw Doric interfaces above.
-    if processed_mat.is_file() and camera1_metadata_csv.is_file():
-        camera_frame_rate = _read_camera_frame_rate(camera1_metadata_csv)
+    if processed_mat.is_file() and videos_folder_path.is_dir():
+        camera_frame_rate = _read_camera_frame_rate(videos_folder_path)
         for key, stream_name, metadata_key in [
             ("ProcessedControl", "CAM1EXC1", "fiber_photometry_processed_control"),
             (
@@ -171,18 +172,11 @@ def session_to_nwb(
     # frametimes_file_path is passed; instead DANNCE pose timestamps are computed
     # from sampleID / sampling_rate, and each camera's video keeps its own native
     # per-frame timestamps.
-    if dannce_mat.is_file() and camera1_metadata_csv.is_file():
-        camera_frame_rate = _read_camera_frame_rate(camera1_metadata_csv)
-        video_file_paths = {}
-        for cam_idx in range(1, 7):
-            mp4 = session_dir_path / "videos" / f"Camera{cam_idx}" / "0.mp4"
-            if mp4.is_file():
-                video_file_paths[f"Camera{cam_idx}"] = [str(mp4)]
+    if dannce_mat.is_file() and videos_folder_path.is_dir():
 
         source_data["DANNCE"] = dict(
             file_path=str(dannce_mat),
-            video_file_paths=video_file_paths,
-            sampling_rate=camera_frame_rate,
+            videos_folder_path=videos_folder_path,
             subject_name=subject_id,
             animal_index=0,
         )
