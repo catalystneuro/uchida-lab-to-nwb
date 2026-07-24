@@ -157,7 +157,7 @@ Raw Doric fiber photometry (`DoricFiberPhotometryInterface`) and DANNCE pose + v
 | `DoricFiberPhotometryInterface` (neuroconv, ×2: `DoricControl`, `DoricDopamineSignal`) | 2 `FiberPhotometryResponseSeries` in `acquisition`, each with 2 columns (NAc, TS) | One instance per excitation channel (EXC1=control/tdTomato 568 nm, EXC2=dopamine_signal/GRABDA3m 473 nm); each column-stacks 2 ROI streams via a 2-element `stream_names` list. Shares one `FiberPhotometryTable` (4 rows: 2 ROIs × 2 channels) defined in `fiber_photometry.yaml`. |
 | `ProcessedFiberPhotometryInterface` (custom, ×2: `ProcessedControl`, `ProcessedDopamineSignal`) | 2 `FiberPhotometryResponseSeries` in `processing/ophys` | Reads `interpolated_campy_and_doric.mat` (raw fluorescence resampled to video rate, not dF/F); reuses the raw interfaces' `FiberPhotometryTable` rows. No embedded timestamps — generates a nominal regular series from the camera frame rate (read from `videos/Camera1/metadata.csv`). Only present when the `.mat` file and `videos/` folder both exist. |
 | `PCampiSyncInterface` (custom) | 2 `TimeSeries` (`SyncTTL_campy_trigger`, `SyncTTL_rbfmc_frames`) in `acquisition` | Also the **only** interface that sets `NWBFile.session_start_time` (parsed from the pCampi filename). Channel 0 = camera trigger pulses; channel 1 = Doric BBC300 Camera1 output pulses (intended for Doric-clock alignment; see Temporal Alignment — currently unusable). |
-| `DANNCEConverter` (neuroconv) | `PoseEstimation` (ndx-pose) in `processing/behavior` + 6 `ImageSeries` (external video) + calibrated `Device`s | Reads `DANNCE/save_data_AVG0.mat` (`animal_index=0` for Lone sessions); no `frametimes_file_path` passed — pose timestamps computed from `sampleID`/sampling rate, video keeps each camera's own native per-frame timestamps. |
+| `DANNCEConverter` (neuroconv) | `PoseEstimation` (ndx-pose) in `processing/behavior` + 6 `ImageSeries` (external video) + calibrated `Device`s | Reads `DANNCE/save_data_AVG0.mat` (`animal_index=0` for Lone sessions); no `frametimes_file_path` passed — pose timestamps computed from `sampleID`/sampling rate, video keeps each camera's own native per-frame timestamps. Skeleton (`SDANNCE_LANDMARK_NAMES`/`SDANNCE_SKELETON_EDGES` from `utils/constants.py`) is injected into `Behavior/Pose` metadata at conversion time (`session_to_nwb()`), keyed by `pose_key` ("PoseEstimationDANNCE"). |
 
 `Phillips2025NWBConverter` (`nwbconverter.py`) registers 6 interface slots:
 `DoricControl`, `DoricDopamineSignal`, `ProcessedControl`, `ProcessedDopamineSignal`,
@@ -189,6 +189,18 @@ Dependencies (`pyproject.toml`, `[phillips_2025]` extra): `neuroconv` (from the
   `Subject metadata.xlsx` (transposed: rows=fields, columns=subjects) and returns `subject_id`,
   `species`, `strain`, `genotype`, `sex`, `description`, and (when present) `date_of_birth` and
   `weight`.
+- **`utils/constants.py`**: `SDANNCE_LANDMARK_NAMES` (23 rat23 joints: Snout, EarL/R,
+  Spine{F,M,L}, TailBase, Shoulder/Elbow/Wrist/Hand ×2, Hip/Knee/Ankle/Foot ×2) and
+  `SDANNCE_SKELETON_EDGES` (23 edges, from `diegoaldarondo/Label3D`'s `rat23.mat`, converted from
+  1- to 0-based indices) — mirrors the same constants in `olveczky-lab-to-nwb`'s
+  `klibaite_2025_rat` conversion, which uses the same rat23 DANNCE skeleton. `DANNCEInterface`'s
+  own `get_metadata()` seeds `Behavior/Pose/Skeletons[pose_key]` with `nodes` but an empty `edges`
+  list (it has no anatomical knowledge of the skeleton); `session_to_nwb()` overrides that entry,
+  keyed by the same `pose_key` used in `source_data["DANNCE"]["metadata_key"]`, with the real
+  edges. The override key must match `pose_key` exactly (not the Skeleton's descriptive `name`
+  field) — `DANNCEInterface.add_to_nwbfile()` looks up the skeleton via
+  `PoseEstimations[pose_key]["skeleton_metadata_key"]`, and the metadata merge there is a
+  key-for-key `DeepDict.deep_update`, not a name-based match.
 
 ## Temporal Alignment
 

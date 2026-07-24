@@ -12,6 +12,10 @@ from neuroconv.utils import dict_deep_update, load_dict_from_file
 from uchida_lab_to_nwb.phillips_2025.nwbconverter import (
     Phillips2025NWBConverter,
 )
+from uchida_lab_to_nwb.phillips_2025.utils.constants import (
+    SDANNCE_LANDMARK_NAMES,
+    SDANNCE_SKELETON_EDGES,
+)
 
 # Harvard is in the Eastern timezone
 _TIMEZONE = ZoneInfo("America/New_York")
@@ -172,12 +176,15 @@ def session_to_nwb(
     # frametimes_file_path is passed; instead DANNCE pose timestamps are computed
     # from sampleID / sampling_rate, and each camera's video keeps its own native
     # per-frame timestamps.
+    pose_key = "PoseEstimationDANNCE"
     if dannce_mat.is_file() and videos_folder_path.is_dir():
 
         source_data["DANNCE"] = dict(
             file_path=str(dannce_mat),
             videos_folder_path=videos_folder_path,
+            landmark_names=SDANNCE_LANDMARK_NAMES,
             subject_name=subject_id,
+            metadata_key=pose_key,
             animal_index=0,
         )
         calibration_path = session_dir_path / "calibration"
@@ -253,6 +260,27 @@ def session_to_nwb(
     # Per-subject metadata from caller (species, sex, DOB, strain, etc.)
     if subject_metadata:
         metadata["Subject"] = dict_deep_update(metadata["Subject"], subject_metadata)
+
+    # Inject skeleton edges and DANNCE labels into Behavior/Pose metadata. DANNCEInterface's own
+    # get_metadata() seeds Skeletons[pose_key] with nodes but an empty edges list (it has no
+    # anatomical knowledge), so DANNCEInterface.add_to_nwbfile() looks up the skeleton by
+    # pose_key (via PoseEstimations[pose_key]["skeleton_metadata_key"]) — the override below must
+    # use that same pose_key as the dict key (not the Skeleton's descriptive "name" field) for the
+    # deep-merge in add_to_nwbfile() to actually replace the empty default.
+    if "DANNCE" in source_data:
+        skeleton_name = f"Skeleton{pose_key}_{subject_id.capitalize()}"
+        behavior_pose = metadata.setdefault("Behavior", {}).setdefault("Pose", {})
+        behavior_pose.setdefault("Skeletons", {})[pose_key] = {
+            "name": skeleton_name,
+            "nodes": SDANNCE_LANDMARK_NAMES,
+            "edges": SDANNCE_SKELETON_EDGES,
+        }
+        behavior_pose.setdefault("PoseEstimations", {})[pose_key] = {
+            "name": pose_key,
+            "source_software": "DANNCE",
+            "scorer": "DANNCE",
+            "description": "3D keypoint coordinates estimated using DANNCE.",
+        }
 
     # Promote date_of_birth to datetime with timezone if loaded as a bare date
     # (PyYAML parses YYYY-MM-DD as datetime.date; PyNWB Subject requires datetime)
