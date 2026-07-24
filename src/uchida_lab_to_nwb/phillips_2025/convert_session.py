@@ -121,7 +121,7 @@ def session_to_nwb(
     # FiberPhotometryResponseSeries whose two columns are the NAc and TS ROIs (column-stacked
     # via a 2-element stream_names list; both ROIs under one excitation channel share the same
     # Doric "Time" array, so this is safe). Table region order matches column order: NAc, TS.
-    # See metadata/fiber_photometry.yaml for the matching metadata_key entries.
+    # See fiber_photometry.yaml for the matching metadata_key entries.
     for key, stream_names, metadata_key in [
         (
             "DoricControl",
@@ -206,7 +206,7 @@ def session_to_nwb(
     metadata = dict_deep_update(metadata, editable_metadata)
 
     # Layer 3b: fiber photometry hardware metadata
-    fp_yaml_path = Path(__file__).parent / "metadata" / "fiber_photometry.yaml"
+    fp_yaml_path = Path(__file__).parent / "fiber_photometry.yaml"
     metadata = dict_deep_update(metadata, load_dict_from_file(fp_yaml_path))
 
     # Each DoricFiberPhotometryInterface seeds a placeholder "row0" FiberPhotometryTable row
@@ -274,14 +274,11 @@ def session_to_nwb(
 
 
 if __name__ == "__main__":
-    from uchida_lab_to_nwb.phillips_2025.convert_all_sessions import (
-        load_subject_metadata_from_xlsx,
-    )
+    from uchida_lab_to_nwb.phillips_2025.utils.subject_metadata import get_subject_metadata
 
-    _all_subjects = load_subject_metadata_from_xlsx(
-        "H:/Uchida-CN-data-share/Subject metadata.xlsx"
+    _subject_meta = get_subject_metadata(
+        subject_id="M4", xlsx_path=Path("H:/Uchida-CN-data-share/Subject metadata.xlsx")
     )
-    _subject_meta = _all_subjects.get("M4", {})
 
     session_to_nwb(
         session_dir_path="H:/Uchida-CN-data-share/Hannah_data/M4-M7/Lone_data/day_1/M4",

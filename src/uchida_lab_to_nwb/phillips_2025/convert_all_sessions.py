@@ -1,116 +1,16 @@
 """Batch conversion of all Uchida Lab (Phillips 2025) sessions to NWB."""
 
-import datetime
 import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from pprint import pformat
 from typing import Union
-from zoneinfo import ZoneInfo
 
 from tqdm import tqdm
 
-from neuroconv.utils import load_dict_from_file
+from uchida_lab_to_nwb.phillips_2025.utils.subject_metadata import get_subject_metadata
 
 from .convert_session import session_to_nwb
-
-_TIMEZONE = ZoneInfo("America/New_York")
-
-
-def load_subject_metadata_from_xlsx(xlsx_path: Union[str, Path]) -> dict:
-    """Load per-subject NWB metadata from the lab-provided Excel spreadsheet.
-
-    The spreadsheet is in transposed format: rows are fields, columns are subjects.
-    Expected fields (row labels in column A):
-        Subject ID, Species, Strain / genotype, Sex, Date of birth,
-        Weight at time of experiment, Experimental group, Surgery date
-
-    Parameters
-    ----------
-    xlsx_path : str or Path
-        Path to ``Subject metadata.xlsx``.
-
-    Returns
-    -------
-    dict
-        Keyed by subject_id (e.g. ``"M4"``). Each value is a dict of NWB Subject
-        fields ready to pass to ``session_to_nwb(subject_metadata=...)``.
-    """
-    import openpyxl
-
-    wb = openpyxl.load_workbook(xlsx_path)
-    ws = wb.active
-
-    rows = [
-        row for row in ws.iter_rows(values_only=True) if any(v is not None for v in row)
-    ]
-    field_names = [str(row[0]) for row in rows]
-    n_subjects = len(rows[0]) - 1
-
-    result = {}
-    for col_idx in range(n_subjects):
-        raw = {field_names[i]: rows[i][col_idx + 1] for i in range(len(rows))}
-
-        subject_id = str(raw["Subject ID"])
-
-        # date_of_birth: openpyxl returns datetime.datetime for date cells
-        dob = raw.get("Date of birth")
-        if isinstance(dob, (datetime.datetime, datetime.date)):
-            dob = datetime.datetime(dob.year, dob.month, dob.day, tzinfo=_TIMEZONE)
-        else:
-            dob = None
-
-        # Surgery date (not a standard NWB field — included in description)
-        surgery_raw = raw.get("Surgery date")
-        surgery_str = None
-        if isinstance(surgery_raw, (datetime.datetime, datetime.date)):
-            surgery_str = surgery_raw.strftime("%Y-%m-%d")
-        elif surgery_raw:
-            surgery_str = str(surgery_raw)
-
-        # Strain / genotype: "Long Evans WT" → strain="Long Evans", genotype="WT"
-        strain_raw = str(raw.get("Strain / genotype", "")).strip()
-        parts = strain_raw.rsplit(" ", 1)
-        strain = parts[0] if len(parts) > 1 else strain_raw
-        genotype = parts[1] if len(parts) > 1 else "WT"
-
-        exp_group = str(raw.get("Experimental group", "unknown")).strip()
-        sex = str(raw.get("Sex", "U")).strip()
-        species = str(raw.get("Species", "Rattus norvegicus")).strip()
-
-        weight_raw = raw.get("Weight at time of experiment")
-        weight_str = (
-            None
-            if (weight_raw is None or str(weight_raw).lower() == "not available")
-            else str(weight_raw)
-        )
-
-        desc_parts = [f"Experimental group: {exp_group}.", f"Strain: {strain_raw}."]
-        if surgery_str:
-            desc_parts.append(f"Surgery date: {surgery_str}.")
-        desc_parts.append(
-            f"Weight at experiment time: {weight_str}."
-            if weight_str
-            else "Weight at experiment time: not recorded."
-        )
-        desc_parts.append("SFARI Autism Rat Models Consortium (ARC).")
-
-        entry = dict(
-            subject_id=subject_id,
-            species=species,
-            strain=strain,
-            genotype=genotype,
-            sex=sex,
-            description=" ".join(desc_parts),
-        )
-        if dob is not None:
-            entry["date_of_birth"] = dob
-        if weight_str is not None:
-            entry["weight"] = weight_str
-
-        result[subject_id] = entry
-
-    return result
 
 
 def get_session_to_nwb_kwargs_per_session(
@@ -132,9 +32,9 @@ def get_session_to_nwb_kwargs_per_session(
     data_dir_path : str or Path
         Root directory containing day_*/M*/ session folders.
     subject_metadata_path : str or Path, optional
-        Path to a subject metadata file. Accepts:
-        - ``.xlsx`` / ``.xls``: lab-provided Excel spreadsheet (preferred)
-        - ``.yaml`` / ``.yml``: legacy YAML keyed by subject_id
+        Path to the lab-provided ``Subject metadata.xlsx`` spreadsheet. When
+        omitted, or when a subject is missing from the sheet, that subject's
+        NWB Subject metadata falls back to the converter's placeholders.
 
     Returns
     -------
@@ -142,15 +42,8 @@ def get_session_to_nwb_kwargs_per_session(
         One dict per session containing kwargs for `session_to_nwb`.
     """
     data_dir_path = Path(data_dir_path)
-
-    # Load per-subject metadata if provided
-    subject_meta_map: dict = {}
     if subject_metadata_path is not None:
-        path = Path(subject_metadata_path)
-        if path.suffix.lower() in (".xlsx", ".xls"):
-            subject_meta_map = load_subject_metadata_from_xlsx(path)
-        else:
-            subject_meta_map = load_dict_from_file(path)
+        subject_metadata_path = Path(subject_metadata_path)
 
     kwargs_list = []
     for day_dir in sorted(data_dir_path.glob("day_*")):
@@ -165,10 +58,18 @@ def get_session_to_nwb_kwargs_per_session(
             ):
                 continue
             subject_id = subject_dir.name
+
+            subject_metadata = {}
+            if subject_metadata_path is not None:
+                try:
+                    subject_metadata = get_subject_metadata(subject_id, subject_metadata_path)
+                except KeyError as exc:
+                    print(f"  [WARNING] {exc}")
+
             kwargs_list.append(
                 dict(
                     session_dir_path=subject_dir,
-                    subject_metadata=subject_meta_map.get(subject_id, {}),
+                    subject_metadata=subject_metadata,
                 )
             )
 
@@ -208,7 +109,7 @@ def dataset_to_nwb(
     output_dir_path : str or Path
         Directory where NWB files will be written.
     subject_metadata_path : str or Path, optional
-        Path to ``_metadata/subject_metadata.yaml`` with per-subject metadata.
+        Path to the lab-provided ``Subject metadata.xlsx`` spreadsheet.
     max_workers : int
         Number of parallel workers.
     stub_test : bool
