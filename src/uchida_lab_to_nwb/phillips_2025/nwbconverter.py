@@ -41,8 +41,8 @@ class Phillips2025NWBConverter(NWBConverter):
     data_interface_classes = dict(
         DoricControl=DoricFiberPhotometryInterface,
         DoricDopamineSignal=DoricFiberPhotometryInterface,
-        ProcessedControl=ProcessedFiberPhotometryInterface,
-        ProcessedDopamineSignal=ProcessedFiberPhotometryInterface,
+        InterpolatedFPControlSignal=ProcessedFiberPhotometryInterface,
+        InterpolatedFPDopamineSignal=ProcessedFiberPhotometryInterface,
         PCampiSyncCampyTrigger=PCampiSyncInterface,
         PCampiSyncRbfmcFrames=PCampiSyncInterface,
         DANNCE=DANNCEConverter,
