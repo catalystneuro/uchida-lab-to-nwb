@@ -23,6 +23,40 @@ _TIMEZONE = ZoneInfo("America/New_York")
 # pCampi filename pattern: YYMMDD_HHMMSS_M{id}.h5
 _PCAMPI_PATTERN = re.compile(r"(\d{6}_\d{6})_(M\d+)\.h5")
 
+# Maps each raw-Doric-photometry interface slot (Phillips2025NWBConverter.data_interface_classes)
+# to the Doric excitation channel's two ROI stream names (column-stacked into that interface's
+# single FiberPhotometryResponseSeries) and the fiber_photometry.yaml metadata_key holding its
+# response-series metadata.
+_DORIC_INTERFACE_CONFIG = {
+    "DoricControl": dict(
+        stream_names=[
+            "BBC300_ROISignals_Series0001_CAM1EXC1_ROI01",
+            "BBC300_ROISignals_Series0001_CAM1EXC1_ROI02",
+        ],
+        metadata_key="fiber_photometry_control",
+    ),
+    "DoricDopamineSignal": dict(
+        stream_names=[
+            "BBC300_ROISignals_Series0001_CAM1EXC2_ROI01",
+            "BBC300_ROISignals_Series0001_CAM1EXC2_ROI02",
+        ],
+        metadata_key="fiber_photometry_dopamine_signal",
+    ),
+}
+
+# Maps each processed (interpolated) fiber-photometry interface slot to the Doric excitation
+# channel name (as read from interpolated_campy_and_doric.mat) and its fiber_photometry.yaml
+# metadata_key, mirroring _DORIC_INTERFACE_CONFIG above.
+_PROCESSED_INTERFACE_CONFIG = {
+    "InterpolatedFPControlSignal": dict(
+        stream_name="CAM1EXC1", metadata_key="fiber_photometry_interpolated_control"
+    ),
+    "InterpolatedFPDopamineSignal": dict(
+        stream_name="CAM1EXC2",
+        metadata_key="fiber_photometry_interpolated_dopamine_signal",
+    ),
+}
+
 
 def _read_camera_frame_rate(videos_folder_path: Path) -> float:
     """Read the ``frameRate`` field (Hz) from a campy ``metadata.csv`` file."""
@@ -126,28 +160,11 @@ def session_to_nwb(
     # via a 2-element stream_names list; both ROIs under one excitation channel share the same
     # Doric "Time" array, so this is safe). Table region order matches column order: NAc, TS.
     # See fiber_photometry.yaml for the matching metadata_key entries.
-    for key, stream_names, metadata_key in [
-        (
-            "DoricControl",
-            [
-                "BBC300_ROISignals_Series0001_CAM1EXC1_ROI01",
-                "BBC300_ROISignals_Series0001_CAM1EXC1_ROI02",
-            ],
-            "fiber_photometry_control",
-        ),
-        (
-            "DoricDopamineSignal",
-            [
-                "BBC300_ROISignals_Series0001_CAM1EXC2_ROI01",
-                "BBC300_ROISignals_Series0001_CAM1EXC2_ROI02",
-            ],
-            "fiber_photometry_dopamine_signal",
-        ),
-    ]:
+    for key, config in _DORIC_INTERFACE_CONFIG.items():
         source_data[key] = dict(
             file_path=str(doric_file),
-            stream_names=stream_names,
-            metadata_key=metadata_key,
+            stream_names=config["stream_names"],
+            metadata_key=config["metadata_key"],
         )
         conversion_options[key] = dict(stub_test=stub_test)
 
@@ -155,20 +172,13 @@ def session_to_nwb(
     # interface per channel, mirroring the raw Doric interfaces above.
     if processed_mat.is_file() and videos_folder_path.is_dir():
         camera_frame_rate = _read_camera_frame_rate(videos_folder_path)
-        for key, stream_name, metadata_key in [
-            ("ProcessedControl", "CAM1EXC1", "fiber_photometry_processed_control"),
-            (
-                "ProcessedDopamineSignal",
-                "CAM1EXC2",
-                "fiber_photometry_processed_dopamine_signal",
-            ),
-        ]:
+        for key, config in _PROCESSED_INTERFACE_CONFIG.items():
             source_data[key] = dict(
                 file_path=str(processed_mat),
                 sampling_rate=camera_frame_rate,
-                stream_names=stream_name,
+                stream_names=config["stream_name"],
                 stream_indices=[0, 1],
-                metadata_key=metadata_key,
+                metadata_key=config["metadata_key"],
             )
             conversion_options[key] = dict(stub_test=stub_test)
 
@@ -244,8 +254,8 @@ def session_to_nwb(
             "row_dopamine_signal_NAc",
             "row_dopamine_signal_TS",
         ],
-        "fiber_photometry_processed_control": ["row_control_NAc", "row_control_TS"],
-        "fiber_photometry_processed_dopamine_signal": [
+        "fiber_photometry_interpolated_control": ["row_control_NAc", "row_control_TS"],
+        "fiber_photometry_interpolated_dopamine_signal": [
             "row_dopamine_signal_NAc",
             "row_dopamine_signal_TS",
         ],
@@ -302,7 +312,9 @@ def session_to_nwb(
 
 
 if __name__ == "__main__":
-    from uchida_lab_to_nwb.phillips_2025.utils.subject_metadata import get_subject_metadata
+    from uchida_lab_to_nwb.phillips_2025.utils.subject_metadata import (
+        get_subject_metadata,
+    )
 
     _subject_meta = get_subject_metadata(
         subject_id="M4", xlsx_path=Path("H:/Uchida-CN-data-share/Subject metadata.xlsx")
