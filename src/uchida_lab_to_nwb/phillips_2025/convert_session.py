@@ -113,12 +113,11 @@ def session_to_nwb(
 
     Notes
     -----
-    Temporal alignment across streams is not yet implemented (see conversion_notes.md). Each
-    stream currently writes timestamps on its own native/nominal clock. ``NWBFile.session_start_time``
-    is set from the pCampi filename (``PCampiSyncInterface`` is the only interface that sets it);
-    ``DoricFiberPhotometryInterface`` does not set its own session_start_time, so raw Doric
-    photometry timestamps (Doric's own clock, not offset-corrected to pCampi) should not be
-    interpreted as starting exactly at ``session_start_time``.
+    ``NWBFile.session_start_time`` is set from the pCampi filename (``PCampiSyncInterface`` is the
+    only interface that sets it). ``Phillips2025NWBConverter.temporally_align_data_interfaces()``
+    (see ``nwbconverter.py`` and ``utils/sync_alignment.py``) aligns the raw and processed Doric
+    fiber photometry interfaces, and the DANNCE pose + video interfaces, onto that same pCampi
+    clock -- see conversion_notes.md for the full description and remaining open items.
     """
     session_dir_path = Path(session_dir_path)
     output_dir_path = Path(output_dir_path)
@@ -343,4 +342,5 @@ if __name__ == "__main__":
         subject_metadata=_subject_meta,
         stub_test=True,
         verbose=True,
+        overwrite=True,
     )
