@@ -158,13 +158,12 @@ class ProcessedFiberPhotometryInterface(BaseFiberPhotometryInterface):
         stub_test: bool = False,
         stub_samples: int = 100,
         always_write_timestamps: bool = False,
-        strict: bool = False,
     ) -> None:
         from ndx_fiber_photometry import FiberPhotometryResponseSeries
 
         metadata = metadata or self.get_metadata()
         fiber_photometry_metadata = metadata["FiberPhotometry"]
-        self._warn_about_placeholder_metadata(fiber_photometry_metadata, strict=strict)
+        self._validate_metadata(fiber_photometry_metadata)
 
         def stub(array: np.ndarray) -> np.ndarray:
             return array[: min(stub_samples, len(array))] if stub_test else array
