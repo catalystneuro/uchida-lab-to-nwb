@@ -251,7 +251,7 @@ FiberPhotometry:
     name: FiberPhotometryRawControlSignal
     description: "Raw demodulated tdTomato fluorescence, control channel (568
       nm). Columns: NAc, TS. Doric arbitrary fluorescence units."
-    unit: F
+    unit: a.u
     fiber_photometry_table_region: [row_control_NAc, row_control_TS]
     fiber_photometry_table_region_description: "FiberPhotometryTable rows: NAc and TS, control (568 nm), tdTomato."
 
