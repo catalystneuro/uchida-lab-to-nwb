@@ -1,17 +1,17 @@
 """Primary NWBConverter class for the Uchida Lab phillips_2025 conversion."""
 
+import numpy as np
 from neuroconv import NWBConverter
 from neuroconv.converters import DANNCEConverter
 from neuroconv.datainterfaces import DoricFiberPhotometryInterface
+from neuroconv.tools.signal_processing import (
+    get_falling_frames_from_ttl,
+    get_rising_frames_from_ttl,
+)
 
 from uchida_lab_to_nwb.phillips_2025.interfaces import (
     PCampiSyncInterface,
     ProcessedFiberPhotometryInterface,
-)
-from uchida_lab_to_nwb.phillips_2025.utils.sync_alignment import (
-    DORIC_SYNC_STREAM_NAME,
-    compute_doric_to_pcampi_offset,
-    drop_spurious_leading_edges,
 )
 
 # Interfaces whose native timestamps are on the Doric BBC300 clock (raw fiber photometry) or a
@@ -23,6 +23,26 @@ _DORIC_ALIGNED_INTERFACE_KEYS = (
     "InterpolatedFPControlSignal",
     "InterpolatedFPDopamineSignal",
 )
+
+DORIC_SYNC_STREAM_NAME = "BBC300_Signals_Series0001_DigitalIO_DigitalCh1"
+
+
+def drop_spurious_leading_edges(edge_times: np.ndarray) -> np.ndarray:
+    """Drop leading edges whose spacing to the next edge is far from the train's nominal ISI.
+
+    Used to find the first edge of the *regular* ~50 Hz train (e.g. for DANNCE alignment, anchored
+    to ``campy_trigger``'s first real rising edge) -- distinct from the start-of-recording marker
+    pulse itself, whose first falling edge ``temporally_align_data_interfaces()`` reads directly
+    (via ``get_falling_frames_from_ttl``) to compute the pCampi<->Doric offset.
+    """
+    edge_times = np.asarray(edge_times)
+    if len(edge_times) < 2:
+        return edge_times
+    nominal_isi = np.median(np.diff(edge_times))
+    clean = edge_times
+    while len(clean) > 1 and abs(clean[1] - clean[0] - nominal_isi) > nominal_isi:
+        clean = clean[1:]
+    return clean
 
 
 class Phillips2025NWBConverter(NWBConverter):
@@ -50,8 +70,28 @@ class Phillips2025NWBConverter(NWBConverter):
 
     Temporal alignment: ``campy_trigger`` (pCampi/h5) and ``DigitalCh1`` (Doric/.doric, "DIO BNC |
     Ch.1") carry the same physical TTL pulse train on two independent 1 kHz clocks (see
-    ``documentation/explore_sync_signals.py`` and ``utils/sync_alignment.py``).
-    ``temporally_align_data_interfaces()``:
+    ``documentation/explore_sync_signals.py``). ``temporally_align_data_interfaces()``:
+
+    - Reads ``DigitalCh1``'s raw trace directly off the already-instantiated ``DoricControl``
+      interface (``DoricFiberPhotometryInterface._get_stream_data()``/``_get_stream_timestamps()``
+      with ``stream_name=DORIC_SYNC_STREAM_NAME``) and ``campy_trigger``'s raw trace via
+      ``PCampiSyncInterface.get_digital_data()``. Edge detection on both uses neuroconv's
+      ``get_falling_frames_from_ttl``/``get_rising_frames_from_ttl``
+      (``neuroconv.tools.signal_processing``). Each side's very
+      first falling edge is the same physical event -- a start-of-recording marker pulse both
+      systems emit once before their regular ~50 Hz train begins -- so subtracting the two directly
+      gives a single scalar offset (seconds), applied via ``set_aligned_starting_time()`` to every
+      Doric-photometry-derived interface (``DoricControl``, ``DoricDopamineSignal``,
+      ``InterpolatedFPControlSignal``, ``InterpolatedFPDopamineSignal``).
+    - Anchors ``DANNCE`` (pose + all 6 videos, which share one native "elapsed seconds since
+      recording start" clock from each camera's ``frametimes.npy``) via
+      ``set_aligned_starting_time()`` to the first non-spurious **rising** edge of the pCampi
+      ``campy_trigger`` train (``drop_spurious_leading_edges()`` applied to
+      ``get_rising_frames_from_ttl()`` output, to skip past the marker pulse and land on the first
+      real camera-trigger pulse) -- the pCampi-clock time of that first real trigger. This is
+      looped over every sub-interface of the ``DANNCEConverter``
+      (``dannce.data_interface_objects.values()``), so pose and all 6 videos stay mutually
+      synchronized after the shift.
     """
 
     data_interface_classes = dict(
@@ -72,18 +112,25 @@ class Phillips2025NWBConverter(NWBConverter):
         if campy_trigger is None or doric_control is None:
             return  # cannot align without both halves of the sync pulse train
 
-        # Read DigitalCh1's raw trace directly off the already-instantiated DoricControl
-        # interface -- no extra interface is instantiated, and nothing extra is written to the
-        # NWB file.
         doric_digital_ch1_data = doric_control._get_stream_data(
             stream_name=DORIC_SYNC_STREAM_NAME
         )
         doric_digital_ch1_time = doric_control._get_stream_timestamps(
             stream_name=DORIC_SYNC_STREAM_NAME
         )
-        pcampi_falling_edge_times = campy_trigger.get_falling_edges()
-        doric_to_pcampi_offset = compute_doric_to_pcampi_offset(
-            pcampi_falling_edge_times, doric_digital_ch1_data, doric_digital_ch1_time
+        doric_ttl_falling_edges = get_falling_frames_from_ttl(doric_digital_ch1_data)
+        first_doric_ttl_falling_edge_timestamp = doric_digital_ch1_time[
+            doric_ttl_falling_edges[0]
+        ]
+
+        pcampi_data, pcampi_sampling_freq = campy_trigger.get_digital_data()
+        pcampi_falling_edges = get_falling_frames_from_ttl(pcampi_data)
+        first_pcampi_falling_edge_timestamp = (
+            pcampi_falling_edges[0] / pcampi_sampling_freq
+        )
+
+        doric_to_pcampi_offset = float(
+            first_pcampi_falling_edge_timestamp - first_doric_ttl_falling_edge_timestamp
         )
 
         for key in _DORIC_ALIGNED_INTERFACE_KEYS:
@@ -93,7 +140,9 @@ class Phillips2025NWBConverter(NWBConverter):
 
         dannce = self.data_interface_objects.get("DANNCE")
         if dannce is not None:
-            pcampi_rising_edge_times = campy_trigger.get_rising_edges()
+            pcampi_rising_edge_times = (
+                get_rising_frames_from_ttl(pcampi_data) / pcampi_sampling_freq
+            )
             first_real_rising_edge = drop_spurious_leading_edges(
                 pcampi_rising_edge_times
             )[0]

@@ -1,4 +1,5 @@
 """Interface for a single pCampi (LabVIEW) synchronization TTL channel (.h5 files)."""
+
 import re
 import warnings
 from datetime import datetime
@@ -90,7 +91,8 @@ class PCampiSyncInterface(BaseDataInterface):
         with h5py.File(self.source_data["file_path"], "r") as f:
             dataset = f["digital_input/data"]
             channel_names = [
-                name.strip() for name in dataset.attrs.get("channel_names", "").split(",")
+                name.strip()
+                for name in dataset.attrs.get("channel_names", "").split(",")
             ]
             if self._channel_name not in channel_names:
                 raise ValueError(
@@ -103,18 +105,6 @@ class PCampiSyncInterface(BaseDataInterface):
     def get_digital_data(self) -> tuple[np.ndarray, float]:
         """Return the raw digital input array for this channel and its sampling rate."""
         return self._data, self._sampling_rate
-
-    def get_rising_edges(self) -> np.ndarray:
-        """Return timestamps (seconds) of this channel's rising edges (pCampi clock)."""
-        binary = (self._data > 0).astype(np.int8)
-        edges = np.where(np.diff(binary) > 0)[0]
-        return (edges + 1) / self._sampling_rate
-
-    def get_falling_edges(self) -> np.ndarray:
-        """Return timestamps (seconds) of this channel's falling edges (pCampi clock)."""
-        binary = (self._data > 0).astype(np.int8)
-        edges = np.where(np.diff(binary) < 0)[0]
-        return (edges + 1) / self._sampling_rate
 
     def has_meaningful_signal(self) -> bool:
         """Return False if this channel never changes value (e.g. stuck at zero)."""

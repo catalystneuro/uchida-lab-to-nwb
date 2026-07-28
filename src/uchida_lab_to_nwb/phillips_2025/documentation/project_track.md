@@ -57,7 +57,7 @@
 ### Temporal Synchronization
 
 - [x] Sync plan documented in `conversion_notes.md` (see "Temporal Alignment" section)
-- [x] `temporally_align_data_interfaces()` implemented in [src/uchida_lab_to_nwb/phillips_2025/nwbconverter.py](src/uchida_lab_to_nwb/phillips_2025/nwbconverter.py), using [src/uchida_lab_to_nwb/phillips_2025/utils/sync_alignment.py](src/uchida_lab_to_nwb/phillips_2025/utils/sync_alignment.py) — pCampi `campy_trigger` matched against Doric `DigitalCh1` (not `rbfmc_frames`, which turned out to be dead/all-zero) for a single scalar offset applied via `set_aligned_starting_time()`
+- [x] `temporally_align_data_interfaces()` implemented in [src/uchida_lab_to_nwb/phillips_2025/nwbconverter.py](src/uchida_lab_to_nwb/phillips_2025/nwbconverter.py) — pCampi `campy_trigger` matched against Doric `DigitalCh1` (not `rbfmc_frames`, which turned out to be dead/all-zero) for a single scalar offset applied via `set_aligned_starting_time()`; edge detection uses neuroconv's `get_falling_frames_from_ttl`/`get_rising_frames_from_ttl` (`neuroconv.tools.signal_processing`)
 - [ ] Frame-count mismatch (90,074 `campy_trigger` pulses vs. 90,000 saved frames) unresolved — not blocking (see conversion_notes.md TODOs)
 
 ---

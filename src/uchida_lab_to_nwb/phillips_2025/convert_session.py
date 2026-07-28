@@ -115,9 +115,9 @@ def session_to_nwb(
     -----
     ``NWBFile.session_start_time`` is set from the pCampi filename (``PCampiSyncInterface`` is the
     only interface that sets it). ``Phillips2025NWBConverter.temporally_align_data_interfaces()``
-    (see ``nwbconverter.py`` and ``utils/sync_alignment.py``) aligns the raw and processed Doric
-    fiber photometry interfaces, and the DANNCE pose + video interfaces, onto that same pCampi
-    clock -- see conversion_notes.md for the full description and remaining open items.
+    (see ``nwbconverter.py``) aligns the raw and processed Doric fiber photometry interfaces, and
+    the DANNCE pose + video interfaces, onto that same pCampi clock -- see conversion_notes.md for
+    the full description and remaining open items.
     """
     session_dir_path = Path(session_dir_path)
     output_dir_path = Path(output_dir_path)
