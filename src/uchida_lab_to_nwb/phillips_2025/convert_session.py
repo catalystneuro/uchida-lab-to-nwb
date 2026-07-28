@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 
+from uchida_lab_to_nwb.phillips_2025.interfaces import PCampiSyncInterface
 from uchida_lab_to_nwb.phillips_2025.nwbconverter import (
     Phillips2025NWBConverter,
 )
@@ -22,6 +23,13 @@ _TIMEZONE = ZoneInfo("America/New_York")
 
 # pCampi filename pattern: YYMMDD_HHMMSS_M{id}.h5
 _PCAMPI_PATTERN = re.compile(r"(\d{6}_\d{6})_(M\d+)\.h5")
+
+# Maps pCampi digital channel names (as read from the .h5 file) to the interface slot each
+# is registered under in Phillips2025NWBConverter.data_interface_classes.
+_PCAMPI_CHANNEL_TO_INTERFACE_KEY = {
+    "campy_trigger": "PCampiSyncCampyTrigger",
+    "rbfmc_frames": "PCampiSyncRbfmcFrames",
+}
 
 # Maps each raw-Doric-photometry interface slot (Phillips2025NWBConverter.data_interface_classes)
 # to the Doric excitation channel's two ROI stream names (column-stacked into that interface's
@@ -71,7 +79,7 @@ def _read_camera_frame_rate(videos_folder_path: Path) -> float:
 def session_to_nwb(
     session_dir_path: Union[str, Path],
     output_dir_path: Union[str, Path],
-    subject_metadata: dict | None = None,
+    subject_metadata: dict,
     stub_test: bool = False,
     overwrite: bool = False,
     verbose: bool = False,
@@ -93,9 +101,8 @@ def session_to_nwb(
         - ``videos/Camera1/metadata.csv``  — camera acquisition metadata (frameRate, etc.)
     output_dir_path : str or Path
         Directory where the NWB file will be written.
-    subject_metadata : dict, optional
+    subject_metadata : dict
         Per-subject NWB Subject fields (species, sex, age, strain, etc.).
-        When not provided, placeholders from ``metadata/phillips_2025_metadata.yaml`` are used.
     stub_test : bool
         If True, write a small stub file for quick testing.
     overwrite : bool
@@ -105,18 +112,27 @@ def session_to_nwb(
 
     Notes
     -----
-    Temporal alignment across streams is not yet implemented (see conversion_notes.md). Each
-    stream currently writes timestamps on its own native/nominal clock. ``NWBFile.session_start_time``
-    is set from the pCampi filename (``PCampiSyncInterface`` is the only interface that sets it);
-    ``DoricFiberPhotometryInterface`` does not set its own session_start_time, so raw Doric
-    photometry timestamps (Doric's own clock, not offset-corrected to pCampi) should not be
-    interpreted as starting exactly at ``session_start_time``.
+    ``NWBFile.session_start_time`` is set from the pCampi filename (``PCampiSyncInterface`` is the
+    only interface that sets it). ``Phillips2025NWBConverter.temporally_align_data_interfaces()``
+    (see ``nwbconverter.py``) aligns the raw and processed Doric fiber photometry interfaces, and
+    the DANNCE pose + video interfaces, onto that same pCampi clock -- see conversion_notes.md for
+    the full description and remaining open items.
     """
     session_dir_path = Path(session_dir_path)
     output_dir_path = Path(output_dir_path)
+    subject_id = subject_metadata["subject_id"]
     if stub_test:
         output_dir_path = output_dir_path / "nwb_stub"
+    output_dir_path = output_dir_path / f"sub-{subject_id}"
     output_dir_path.mkdir(parents=True, exist_ok=True)
+
+    # ── Parse session_id from session directory ─────────────────
+    # pattern to parse: {data_directory}/{condition}_data/{day_number}/{subject_id}
+    day_dir_name = session_dir_path.parent.name
+    condition = session_dir_path.parent.parent.name.removesuffix("_data").lower()
+    session_id = f"{day_dir_name.replace('_', '-')}-{condition}"
+
+    nwbfile_path = output_dir_path / f"sub-{subject_id}_ses-{session_id}.nwb"
 
     # ── Discover files ────────────────────────────────────────────────────────
     pcampi_files = list(session_dir_path.glob("*.h5"))
@@ -128,19 +144,13 @@ def session_to_nwb(
     doric_file = doric_files[0]
 
     processed_mat = session_dir_path / "interpolated_campy_and_doric.mat"
-    dannce_mat = session_dir_path / "DANNCE" / "save_data_AVG0.mat"
+    dannce_mat = (
+        session_dir_path / "DANNCE" / "save_data_AVG0.mat"
+        if condition == "lone"
+        else session_dir_path / "sDANNCE" / "predict05" / "save_data_AVG0.mat"
+    )
     videos_folder_path = session_dir_path / "videos"
 
-    # ── Parse session_id and subject_id from pCampi filename ─────────────────
-    m = _PCAMPI_PATTERN.match(pcampi_file.name)
-    if m:
-        datetime_str, subject_id = m.group(1), m.group(2)
-        session_id = f"{datetime_str}_{subject_id}"
-    else:
-        subject_id = session_dir_path.name  # fallback
-        session_id = session_dir_path.name
-
-    nwbfile_path = output_dir_path / f"sub-{subject_id}_ses-{session_id}.nwb"
     if nwbfile_path.exists() and not overwrite and not stub_test:
         print(
             f"Skipping {nwbfile_path} (already exists). Pass overwrite=True to overwrite."
@@ -151,9 +161,18 @@ def session_to_nwb(
     source_data = {}
     conversion_options = {}
 
-    # pCampi sync (always present)
-    source_data["PCampiSync"] = dict(file_path=str(pcampi_file))
-    conversion_options["PCampiSync"] = dict(stub_test=stub_test)
+    # pCampi sync (always present): one PCampiSyncInterface per digital TTL channel found in
+    # the h5 file.
+    for channel_name in PCampiSyncInterface.get_available_channels(pcampi_file):
+        if channel_name not in _PCAMPI_CHANNEL_TO_INTERFACE_KEY:
+            raise ValueError(
+                f"Unrecognized pCampi channel {channel_name!r} in {pcampi_file}. "
+                f"Add it to _PCAMPI_CHANNEL_TO_INTERFACE_KEY and register a matching slot in "
+                "Phillips2025NWBConverter.data_interface_classes."
+            )
+        key = _PCAMPI_CHANNEL_TO_INTERFACE_KEY[channel_name]
+        source_data[key] = dict(file_path=str(pcampi_file), channel_name=channel_name)
+        conversion_options[key] = dict(stub_test=stub_test)
 
     # Raw Doric photometry (always present): one interface per channel, each writing a single
     # FiberPhotometryResponseSeries whose two columns are the NAc and TS ROIs (column-stacked
@@ -267,6 +286,11 @@ def session_to_nwb(
     metadata["NWBFile"]["session_id"] = session_id
     metadata["Subject"]["subject_id"] = subject_id
 
+    metadata["NWBFile"]["session_description"] = (
+        f"Experimental {day_dir_name.replace('_', ' ')}. Freely behaving rat in {condition} condition recorded with 6-camera multi-view video, "
+        f"3D pose estimation (DANNCE), and fiber photometry (Doric BBC300). "
+    )
+
     # Per-subject metadata from caller (species, sex, DOB, strain, etc.)
     if subject_metadata:
         metadata["Subject"] = dict_deep_update(metadata["Subject"], subject_metadata)
@@ -326,4 +350,5 @@ if __name__ == "__main__":
         subject_metadata=_subject_meta,
         stub_test=True,
         verbose=True,
+        overwrite=True,
     )

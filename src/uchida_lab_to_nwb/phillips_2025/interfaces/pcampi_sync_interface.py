@@ -1,5 +1,7 @@
-"""Interface for pCampi (LabVIEW) synchronization TTL pulse data (.h5 files)."""
+"""Interface for a single pCampi (LabVIEW) synchronization TTL channel (.h5 files)."""
+
 import re
+import warnings
 from datetime import datetime
 from pathlib import Path
 
@@ -20,17 +22,19 @@ _FILENAME_PATTERN = re.compile(r"(\d{6}_\d{6})_M\d+\.h5")
 
 
 class PCampiSyncInterface(BaseDataInterface):
-    """Interface for pCampi LabVIEW synchronization TTL pulses.
+    """Interface for a single pCampi LabVIEW synchronization TTL channel.
 
-    Reads the H5 file written by pCampi (LabVIEW) containing NIDAQ digital input
-    channels recorded at 1 kHz. The file has two channels:
-      - Channel 0 (campy_trigger): Camera trigger pulses from the Arduino/campy system.
-        Rising edges give the timestamp of each video frame in the pCampi clock.
-      - Channel 1 (rbfmc_frames): Doric BBC300 Camera1 output pulses (60 Hz).
-        Rising edges are used to align the Doric clock to the pCampi reference clock.
+    Reads one digital channel from the H5 file written by pCampi (LabVIEW), out of the NIDAQ
+    digital input channels recorded at 1 kHz. This interface writes a single ``TimeSeries`` per
+    instance -- it does not assume how many channels exist or what they are named. If an NWB
+    file needs more than one TTL channel written, instantiate this interface once per channel
+    (each with a different ``channel_name``); call :meth:`get_available_channels` to discover
+    the channel names present in a given file.
 
-    The pCampi clock defines the NWB time base for this session. All other data streams
-    are aligned to it in `Phillips2025NWBConverter.temporally_align_data_interfaces()`.
+    The pCampi clock defines the NWB time base for this session (``session_start_time`` is
+    parsed from the filename by whichever instance's ``get_metadata()`` runs). Cross-stream
+    alignment of other data streams to this clock is handled elsewhere (see
+    ``Phillips2025NWBConverter.temporally_align_data_interfaces()``).
     """
 
     keywords = ["synchronization", "TTL", "pCampi", "LabVIEW"]
@@ -38,35 +42,73 @@ class PCampiSyncInterface(BaseDataInterface):
     def __init__(
         self,
         file_path: FilePath,
+        channel_name: str,
         sampling_rate: float = _DEFAULT_SAMPLING_RATE,
         verbose: bool = False,
     ):
+        """Initialize the interface for one TTL channel.
+
+        Parameters
+        ----------
+        file_path : FilePath
+            Path to the pCampi ``.h5`` file.
+        channel_name : str
+            Name of the digital channel to read (as listed in the file's
+            ``digital_input/data`` attribute ``channel_names``). Call
+            :meth:`get_available_channels` to discover valid values for a given file.
+        sampling_rate : float, default: 1000.0
+            NIDAQ sampling rate (Hz).
+        verbose : bool, default: False
+            Whether to print status messages.
+        """
         self.verbose = verbose
         self._sampling_rate = float(sampling_rate)
-        super().__init__(file_path=file_path, sampling_rate=sampling_rate)
+        self._channel_name = channel_name
+        super().__init__(
+            file_path=file_path, channel_name=channel_name, sampling_rate=sampling_rate
+        )
         self._load_data()
+
+    @classmethod
+    def get_available_channels(cls, file_path: FilePath) -> list[str]:
+        """Return the digital channel names available in a pCampi ``.h5`` file.
+
+        Parameters
+        ----------
+        file_path : FilePath
+            Path to the pCampi ``.h5`` file.
+
+        Returns
+        -------
+        list[str]
+            Channel names in column order (matching ``digital_input/data`` columns).
+        """
+        with h5py.File(file_path, "r") as f:
+            chan_names_raw = f["digital_input/data"].attrs.get("channel_names", "")
+        return [name.strip() for name in chan_names_raw.split(",") if name.strip()]
 
     def _load_data(self):
         with h5py.File(self.source_data["file_path"], "r") as f:
-            self._digital_data = f["digital_input/data"][:]  # (N, 2) int16
-            chan_names = f["digital_input/data"].attrs.get("channel_names", "")
-        self._channel_names = [c.strip() for c in chan_names.split(",")]
+            dataset = f["digital_input/data"]
+            channel_names = [
+                name.strip()
+                for name in dataset.attrs.get("channel_names", "").split(",")
+            ]
+            if self._channel_name not in channel_names:
+                raise ValueError(
+                    f"Channel {self._channel_name!r} not found in "
+                    f"{self.source_data['file_path']}. Available channels: {channel_names}"
+                )
+            channel_index = channel_names.index(self._channel_name)
+            self._data = dataset[:, channel_index]
 
     def get_digital_data(self) -> tuple[np.ndarray, float]:
-        """Return the raw digital input array and its sampling rate."""
-        return self._digital_data, self._sampling_rate
+        """Return the raw digital input array for this channel and its sampling rate."""
+        return self._data, self._sampling_rate
 
-    def get_campy_trigger_rising_edges(self) -> np.ndarray:
-        """Return timestamps (seconds) of campy_trigger rising edges (pCampi clock)."""
-        ch = self._digital_data[:, 0]
-        edges = np.where(np.diff((ch > 0).astype(np.int8)) > 0)[0]
-        return (edges + 1) / self._sampling_rate
-
-    def get_doric_frame_rising_edges(self) -> np.ndarray:
-        """Return timestamps (seconds) of Doric rbfmc_frames rising edges (pCampi clock)."""
-        ch = self._digital_data[:, 1]
-        edges = np.where(np.diff((ch > 0).astype(np.int8)) > 0)[0]
-        return (edges + 1) / self._sampling_rate
+    def has_meaningful_signal(self) -> bool:
+        """Return False if this channel never changes value (e.g. stuck at zero)."""
+        return bool(np.any(self._data != self._data[0]))
 
     def get_metadata(self) -> DeepDict:
         metadata = super().get_metadata()
@@ -88,27 +130,27 @@ class PCampiSyncInterface(BaseDataInterface):
         metadata: dict,
         stub_test: bool = False,
     ) -> None:
-        n_stubs = int(self._sampling_rate * 10)  # first 10 seconds in stub mode
-        n = n_stubs if stub_test else len(self._digital_data)
-
-        for ch_idx, ch_name in enumerate(self._channel_names):
-            data = self._digital_data[:n, ch_idx].astype(np.int16)
-            series = TimeSeries(
-                name=f"SyncTTL_{ch_name}",
-                description=(
-                    f"pCampi synchronization TTL channel: {ch_name}. "
-                    "Recorded at 1 kHz by LabVIEW NIDAQ. "
-                    + (
-                        "Rising edges mark video frame capture times."
-                        if "campy" in ch_name
-                        else "Rising edges are Doric BBC300 Camera1 output pulses (60 Hz), "
-                        "used to align the Doric clock to the pCampi reference clock."
-                    )
-                ),
-                data=data,
-                rate=self._sampling_rate,
-                starting_time=0.0,
-                unit="a.u.",
-                resolution=-1.0,
+        if not self.has_meaningful_signal():
+            warnings.warn(
+                f"pCampi channel {self._channel_name!r} in "
+                f"{self.source_data['file_path']} never changes value (constant "
+                f"{self._data[0]}) -- skipping, not writing to the NWB file."
             )
-            nwbfile.add_acquisition(series)
+            return
+
+        n_stubs = int(self._sampling_rate * 10)  # first 10 seconds in stub mode
+        n = n_stubs if stub_test else len(self._data)
+
+        series = TimeSeries(
+            name=f"SyncTTL_{self._channel_name}",
+            description=(
+                f"pCampi synchronization TTL channel: {self._channel_name}. "
+                "Recorded at 1 kHz by LabVIEW NIDAQ."
+            ),
+            data=self._data[:n].astype(np.int16),
+            rate=self._sampling_rate,
+            starting_time=0.0,
+            unit="a.u.",
+            resolution=-1.0,
+        )
+        nwbfile.add_acquisition(series)
