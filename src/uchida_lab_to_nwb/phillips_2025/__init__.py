@@ -1,6 +1,5 @@
 from .interfaces import (
-    DoricFiberPhotometryInterface,
-    DoricProcessedPhotometryInterface,
     PCampiSyncInterface,
+    ProcessedFiberPhotometryInterface,
 )
-from .phillips_2025_nwbconverter import Phillips2025NWBConverter
+from .nwbconverter import Phillips2025NWBConverter

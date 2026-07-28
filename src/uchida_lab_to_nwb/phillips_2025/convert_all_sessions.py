@@ -1,15 +1,16 @@
 """Batch conversion of all Uchida Lab (Phillips 2025) sessions to NWB."""
+
+import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from pprint import pformat
 from typing import Union
-import traceback
 
 from tqdm import tqdm
 
-from neuroconv.utils import load_dict_from_file
+from uchida_lab_to_nwb.phillips_2025.utils.subject_metadata import get_subject_metadata
 
-from .phillips_2025_convert_session import session_to_nwb
+from .convert_session import session_to_nwb
 
 
 def get_session_to_nwb_kwargs_per_session(
@@ -31,8 +32,9 @@ def get_session_to_nwb_kwargs_per_session(
     data_dir_path : str or Path
         Root directory containing day_*/M*/ session folders.
     subject_metadata_path : str or Path, optional
-        Path to a YAML file with per-subject metadata keyed by subject_id
-        (e.g. ``_metadata/subject_metadata.yaml``).
+        Path to the lab-provided ``Subject metadata.xlsx`` spreadsheet. When
+        omitted, or when a subject is missing from the sheet, that subject's
+        NWB Subject metadata falls back to the converter's placeholders.
 
     Returns
     -------
@@ -40,11 +42,8 @@ def get_session_to_nwb_kwargs_per_session(
         One dict per session containing kwargs for `session_to_nwb`.
     """
     data_dir_path = Path(data_dir_path)
-
-    # Load per-subject metadata if provided
-    subject_meta_map: dict = {}
     if subject_metadata_path is not None:
-        subject_meta_map = load_dict_from_file(Path(subject_metadata_path))
+        subject_metadata_path = Path(subject_metadata_path)
 
     kwargs_list = []
     for day_dir in sorted(data_dir_path.glob("day_*")):
@@ -54,13 +53,23 @@ def get_session_to_nwb_kwargs_per_session(
             if not subject_dir.is_dir():
                 continue
             # Sanity check: must have at least a pCampi H5 and a Doric file
-            if not list(subject_dir.glob("*.h5")) or not list(subject_dir.glob("*.doric")):
+            if not list(subject_dir.glob("*.h5")) or not list(
+                subject_dir.glob("*.doric")
+            ):
                 continue
             subject_id = subject_dir.name
+
+            subject_metadata = {}
+            if subject_metadata_path is not None:
+                try:
+                    subject_metadata = get_subject_metadata(subject_id, subject_metadata_path)
+                except KeyError as exc:
+                    print(f"  [WARNING] {exc}")
+
             kwargs_list.append(
                 dict(
                     session_dir_path=subject_dir,
-                    subject_metadata=subject_meta_map.get(subject_id, {}),
+                    subject_metadata=subject_metadata,
                 )
             )
 
@@ -100,7 +109,7 @@ def dataset_to_nwb(
     output_dir_path : str or Path
         Directory where NWB files will be written.
     subject_metadata_path : str or Path, optional
-        Path to ``_metadata/subject_metadata.yaml`` with per-subject metadata.
+        Path to the lab-provided ``Subject metadata.xlsx`` spreadsheet.
     max_workers : int
         Number of parallel workers.
     stub_test : bool
@@ -137,7 +146,9 @@ def dataset_to_nwb(
                 )
             )
 
-        for _ in tqdm(as_completed(futures), total=len(futures), desc="Converting sessions"):
+        for _ in tqdm(
+            as_completed(futures), total=len(futures), desc="Converting sessions"
+        ):
             pass
 
 
@@ -145,10 +156,7 @@ if __name__ == "__main__":
     dataset_to_nwb(
         data_dir_path="H:/Uchida-CN-data-share/Hannah_data/M4-M7/Lone_data",
         output_dir_path="C:/Users/amtra/CatalystNeuro/nwb_output/uchida",
-        subject_metadata_path=(
-            "C:/Users/amtra/CatalystNeuro/uchida-lab-to-nwb"
-            "/src/uchida_lab_to_nwb/phillips_2025/_metadata/subject_metadata.yaml"
-        ),
+        subject_metadata_path="H:/Uchida-CN-data-share/Subject metadata.xlsx",
         max_workers=1,
         stub_test=False,
         overwrite=False,

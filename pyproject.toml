@@ -32,6 +32,7 @@ phillips_2025 = [
     "ndx-ophys-devices>=0.3.1",
     "ndx-pose",
     "opencv-python-headless",
+    "openpyxl",
     "tqdm",
 ]
 

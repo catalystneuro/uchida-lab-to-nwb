@@ -24,11 +24,3 @@ NWBFile:
     - autism
     - SFARI ARC
   # related_publications: []  # TODO: add DOI when available
-
-Subject:
-  species: Rattus norvegicus
-  # strain: TBD  # TODO: confirm rat strain/model with Hannah
-  # sex: TBD     # TODO: fill in subject_metadata.yaml per-subject
-  description: >
-    Autism rat model from the SFARI Autism Rat Models Consortium.
-    Strain and genotype TBD — see hannah_metadata_request.md.

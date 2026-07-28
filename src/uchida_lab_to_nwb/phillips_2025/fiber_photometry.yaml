@@ -1,0 +1,290 @@
+# Fiber photometry hardware metadata for the Uchida Lab Phillips 2025 dataset.
+# Hardware: Doric BBC300 (Behavior-based Fiber Photometry Detector) with two
+# frequency-multiplexed LED excitation channels and up to three fiber-coupled
+# ROIs imaged on a single BFPD CMOS camera.
+#
+# Naming convention: metadata keys use functional roles, not raw hardware channel
+# names (confirmed with the team, 2026-07-23):
+#   EXC1 (568 nm) → "control" (tdTomato, control fluorophore)
+#   EXC2 (473 nm) → "dopamine_signal" (GRABDA3m, dopamine sensor)
+#   ROI01 → "NAc" (Nucleus Accumbens)
+#   ROI02 → "TS" (Tail of Striatum)
+#
+# Confirmed by Hannah Phillips (2026-05-06):
+#   EXC1 = 568 nm (tdTomato excitation), 50 µW at fiber tip
+#   EXC2 = 473 nm (GRABDA3m excitation), 50 µW at fiber tip
+#   BBC300 CMOS camera, wavelength range 350–1100 nm, gain 0 dB (1.0×)
+#   ROI01 → NAc, ROI02 → TS
+#   ROI03 → purpose unknown (only 2 implants confirmed; needs clarification with lab)
+#   Indicators: GRABDA3m (dopamine sensor) + tdTomato (control fluorophore), co-injected
+#   Fiber implant hemisphere: randomized per animal (unknown in this static file)
+#
+# Schema note: DeviceModels/Devices are top-level registries (neuroconv >= the
+# `add-dannce-interface`-era fiber photometry rewrite); FiberPhotometryTable rows and
+# per-series entries reference them by `*_metadata_key`. Each raw
+# FiberPhotometryResponseSeries entry below is keyed by the `metadata_key` passed
+# explicitly to its DoricFiberPhotometryInterface instance in convert_session.py.
+
+# ── Device models (hardware catalogue specs) ────────────────────────────────
+
+DeviceModels:
+  doric_control_led_model:
+    type: ExcitationSourceModel
+    name: doric_control_led_model
+    description: >-
+      Doric BBC300 LED for the control channel (EXC1, 568 nm, tdTomato excitation).
+    manufacturer: Doric Lenses
+    source_type: LED
+    excitation_mode: one-photon
+    wavelength_range_in_nm: [555.0, 570.0]
+
+  doric_dopamine_signal_led_model:
+    type: ExcitationSourceModel
+    name: doric_dopamine_signal_led_model
+    description: >-
+      Doric BBC300 LED for the dopamine signal channel (EXC2, 473 nm, GRABDA3m excitation).
+    manufacturer: Doric Lenses
+    source_type: LED
+    excitation_mode: one-photon
+    wavelength_range_in_nm: [460.0, 490.0]
+
+  doric_bfpd_model:
+    type: PhotodetectorModel
+    name: doric_bfpd_model
+    description: >-
+      Doric BBC300 BFPD (Behavior-based Fiber Photometry Detector) CMOS
+      camera. Captures fluorescence from all ROIs simultaneously via
+      frequency-multiplexed demodulation. Wavelength range 350–1100 nm
+      (approximate). Gain: 0 dB (1.0×).
+    manufacturer: Doric Lenses
+    detector_type: CMOS
+    wavelength_range_in_nm: [350.0, 1100.0]
+    gain: 1.0 # 0 dB in linear scale
+    gain_unit: AU
+
+  doric_optical_fiber_nac_model:
+    type: OpticalFiberModel
+    name: doric_optical_fiber_nac_model
+    description: >-
+      Doric Lenses implantable optical fiber for NAc (ROI01). Part number:
+      MFC_400/430-0.66_8.5mm_MF2.5_FLT. Flat-tip fiber with 2.5 mm ceramic
+      ferrule (MF2.5), active length 8.5 mm.
+    manufacturer: Doric Lenses
+    numerical_aperture: 0.66
+    core_diameter_in_um: 400.0
+    active_length_in_mm: 8.5
+    ferrule_name: MF2.5
+    ferrule_model: MFC_400/430-0.66_8.5mm_MF2.5_FLT
+    ferrule_diameter_in_mm: 2.5
+
+  doric_optical_fiber_ts_model:
+    type: OpticalFiberModel
+    name: doric_optical_fiber_ts_model
+    description: >-
+      Doric Lenses implantable optical fiber for TS (ROI02). Part number:
+      MFC_400/430-0.66_7.5mm_MF2.5_FLT. Flat-tip fiber with 2.5 mm ceramic
+      ferrule (MF2.5), active length 7.5 mm.
+    manufacturer: Doric Lenses
+    numerical_aperture: 0.66
+    core_diameter_in_um: 400.0
+    active_length_in_mm: 7.5
+    ferrule_name: MF2.5
+    ferrule_model: MFC_400/430-0.66_7.5mm_MF2.5_FLT
+    ferrule_diameter_in_mm: 2.5
+
+# ── Device instances ─────────────────────────────────────────────────────────
+
+Devices:
+  excitation_source_control:
+    type: ExcitationSource
+    name: excitation_source_control
+    description: >-
+      Doric BBC300 control-channel LED (EXC1, 568 nm), modulated at 30 Hz.
+      Excites tdTomato (red control fluorophore).
+    device_model_metadata_key: doric_control_led_model
+    power_in_W: 0.00005 # 50 µW at fiber tip
+
+  excitation_source_dopamine_signal:
+    type: ExcitationSource
+    name: excitation_source_dopamine_signal
+    description: >-
+      Doric BBC300 dopamine-signal-channel LED (EXC2, 473 nm), modulated at
+      30 Hz with 16 ms phase offset relative to the control channel. Excites
+      GRABDA3m (green dopamine sensor).
+    device_model_metadata_key: doric_dopamine_signal_led_model
+    power_in_W: 0.00005 # 50 µW at fiber tip
+
+  photodetector_BFPD:
+    type: Photodetector
+    name: photodetector_BFPD
+    description: >-
+      Doric BBC300 BFPD (Behavior-based Fiber Photometry Detector) CMOS
+      camera. Single camera captures fluorescence from all ROIs
+      simultaneously.
+    device_model_metadata_key: doric_bfpd_model
+
+  # Hemisphere is randomized per animal and unknown in this static file.
+  # AP/ML coordinates are absolute distances from bregma (AP = anterior,
+  # ML magnitude confirmed; sign depends on hemisphere).
+  # TODO ask for hemisphere
+
+  optical_fiber_NAc:
+    type: OpticalFiber
+    name: optical_fiber_NAc
+    description: >-
+      Optical fiber implant for NAc (Nucleus Accumbens, ROI01). AP ±1.15 mm
+      from bregma, ML ±2.2 mm, DV −6.3 mm from brain surface. Hemisphere
+      randomized per animal (unknown in this file).
+    device_model_metadata_key: doric_optical_fiber_nac_model
+    fiber_insertion:
+      insertion_position_ap_in_mm: 1.15
+      insertion_position_ml_in_mm: 2.2
+      insertion_position_dv_in_mm: -6.3
+      depth_in_mm: 6.3
+      position_reference: "bregma at the cortical surface"
+      hemisphere: "unknown" # randomized per animal
+
+  optical_fiber_TS:
+    type: OpticalFiber
+    name: optical_fiber_TS
+    description: >-
+      Optical fiber implant for TS (Tail of Striatum, ROI02). AP ±3.15
+      mm from bregma, ML ±5.2 mm, DV −4.5 mm from brain surface. Hemisphere
+      randomized per animal (unknown in this file).
+    device_model_metadata_key: doric_optical_fiber_ts_model
+    fiber_insertion:
+      insertion_position_ap_in_mm: 3.15
+      insertion_position_ml_in_mm: 5.2
+      insertion_position_dv_in_mm: -4.5
+      depth_in_mm: 4.5
+      position_reference: "bregma at the cortical surface"
+      hemisphere: "unknown" # randomized per animal
+      insertion_angle_yaw_in_deg: 0.0
+      insertion_angle_pitch_in_deg: 0.0
+      insertion_angle_roll_in_deg: 0.0
+
+  # - name: optical_fiber_ROI03
+  #   Optical fiber for ROI03. Purpose unknown — Doric file contains 3 ROI
+  #   signals per excitation channel but only 2 fiber implants (NAc and TS)
+  #   are confirmed. Coordinates and brain region TBD pending clarification
+  #   with Hannah Phillips.
+
+# ── Fiber photometry container (indicators, table, per-series metadata) ─────
+# GRABDA3m and tdTomato are co-injected at both ROI sites (NAc and TS).
+
+FiberPhotometry:
+  FiberPhotometryIndicators:
+    GRABDA3m:
+      name: GRABDA3m
+      label: GRABDA3m
+      description: >-
+        GRABDA3m (DA3.3) — genetically encoded green fluorescent dopamine
+        sensor. Expressed via AAV9-hSyn-DA3m (DA3.3) from WZ Biosciences
+        (≥1×10¹³ vg/mL). Co-injected with tdTomato at NAc and TS.
+        Excitation: 473 nm (dopamine signal channel). Emission peak: 520 nm.
+      manufacturer: WZ Biosciences
+
+    tdTomato:
+      name: tdTomato
+      label: tdTomato
+      description: >-
+        tdTomato — red fluorescent protein used as a control fluorophore.
+        Expressed via AAV5-CAG-tdTomato from Addgene (≥5×10¹² vg/mL, 1:10
+        dilution). Co-injected with GRABDA3m at NAc and TS.
+        Excitation: 568 nm (control channel). Emission peak: 581 nm.
+      manufacturer: Addgene
+
+  # ── FiberPhotometryTable ──────────────────────────────────────────────────
+  # Row layout: ROI × channel.
+  # control (568 nm) → tdTomato (emission 581 nm)
+  # dopamine_signal (473 nm) → GRABDA3m (emission 520 nm)
+
+  FiberPhotometryTable:
+    name: fiber_photometry_table
+    description: >-
+      Fiber photometry channel configuration: 2 ROIs × 2 channels. NAc =
+      Nucleus Accumbens, TS = Tail of Striatum. The control channel (568 nm)
+      excites tdTomato; the dopamine_signal channel (473 nm) excites
+      GRABDA3m. Both indicators co-injected at NAc and TS.
+    rows:
+      row_control_NAc:
+        location: "NAc"
+        excitation_wavelength_in_nm: 568.0
+        emission_wavelength_in_nm: 581.0
+        indicator_metadata_key: tdTomato
+        optical_fiber_metadata_key: optical_fiber_NAc
+        excitation_source_metadata_key: excitation_source_control
+        photodetector_metadata_key: photodetector_BFPD
+      row_dopamine_signal_NAc:
+        location: "NAc"
+        excitation_wavelength_in_nm: 473.0
+        emission_wavelength_in_nm: 520.0
+        indicator_metadata_key: GRABDA3m
+        optical_fiber_metadata_key: optical_fiber_NAc
+        excitation_source_metadata_key: excitation_source_dopamine_signal
+        photodetector_metadata_key: photodetector_BFPD
+      row_control_TS:
+        location: "TS"
+        excitation_wavelength_in_nm: 568.0
+        emission_wavelength_in_nm: 581.0
+        indicator_metadata_key: tdTomato
+        optical_fiber_metadata_key: optical_fiber_TS
+        excitation_source_metadata_key: excitation_source_control
+        photodetector_metadata_key: photodetector_BFPD
+      row_dopamine_signal_TS:
+        location: "TS"
+        excitation_wavelength_in_nm: 473.0
+        emission_wavelength_in_nm: 520.0
+        indicator_metadata_key: GRABDA3m
+        optical_fiber_metadata_key: optical_fiber_TS
+        excitation_source_metadata_key: excitation_source_dopamine_signal
+        photodetector_metadata_key: photodetector_BFPD
+      # row_control_ROI03: / row_dopamine_signal_ROI03:
+      #   ROI03 purpose TBD — only 2 implants confirmed by Hannah.
+
+  # ── FiberPhotometryResponseSeries (raw acquisition) ───────────────────────
+  # One series per channel; each series' 2 columns are the NAc and TS ROIs (column-stacked
+  # from a 2-element stream_names list in convert_session.py, in that column order). Keys
+  # match the explicit `metadata_key` passed to each DoricFiberPhotometryInterface instance.
+
+  fiber_photometry_control:
+    name: FiberPhotometryRawControlSignal
+    description: "Raw demodulated tdTomato fluorescence, control channel (568
+      nm). Columns: NAc, TS. Doric arbitrary fluorescence units."
+    unit: a.u
+    fiber_photometry_table_region: [row_control_NAc, row_control_TS]
+    fiber_photometry_table_region_description: "FiberPhotometryTable rows: NAc and TS, control (568 nm), tdTomato."
+
+  fiber_photometry_dopamine_signal:
+    name: FiberPhotometryRawDopamineSignal
+    description: "Raw demodulated GRABDA3m fluorescence, dopamine signal
+      channel (473 nm). Columns: NAc, TS. Doric arbitrary fluorescence units."
+    unit: F
+    fiber_photometry_table_region:
+      [row_dopamine_signal_NAc, row_dopamine_signal_TS]
+    fiber_photometry_table_region_description: "FiberPhotometryTable rows: NAc and TS, dopamine_signal (473 nm), GRABDA3m."
+
+  # ── FiberPhotometryResponseSeries (lab-processed, processing/ophys) ───────
+  # Same underlying signals as the raw series above, resampled by the lab's MATLAB pipeline
+  # to the video frame rate (~50 Hz). Still raw fluorescence, not dF/F. Written via
+  # ProcessedFiberPhotometryInterface, one instance per channel, reading
+  # interpolated_campy_and_doric.mat.
+
+  fiber_photometry_interpolated_control:
+    name: FiberPhotometryInterpolatedControl
+    description: "Demodulated tdTomato fluorescence, control channel (568 nm),
+      resampled to the video frame rate (~50 Hz). Columns: NAc, TS. Doric
+      arbitrary fluorescence units."
+    unit: F
+    fiber_photometry_table_region: [row_control_NAc, row_control_TS]
+    fiber_photometry_table_region_description: "FiberPhotometryTable rows: NAc and TS, control (568 nm), tdTomato."
+
+  fiber_photometry_interpolated_dopamine_signal:
+    name: FiberPhotometryInterpolatedDopamineSignal
+    description: "Demodulated GRABDA3m fluorescence, dopamine signal channel
+      (473 nm), resampled to the video frame rate (~50 Hz). Columns: NAc, TS.
+      Doric arbitrary fluorescence units."
+    unit: F
+    fiber_photometry_table_region:
+      [row_dopamine_signal_NAc, row_dopamine_signal_TS]
+    fiber_photometry_table_region_description: "FiberPhotometryTable rows: NAc and TS, dopamine_signal (473 nm), GRABDA3m."
