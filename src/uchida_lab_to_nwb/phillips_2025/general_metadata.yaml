@@ -1,9 +1,4 @@
 NWBFile:
-  session_description: >
-    Freely behaving rat (lone condition) recorded with 6-camera multi-view video,
-    3D pose estimation (DANNCE), and fiber photometry (Doric BBC300).
-    Part of the SFARI Autism Rat Models Consortium (ARC) study of social behavior
-    and observational fear learning.
   experiment_description: >
     The Uchida lab studies social behavior and observational fear learning in
     autism rat models as part of the SFARI Autism Rat Models Consortium (ARC).

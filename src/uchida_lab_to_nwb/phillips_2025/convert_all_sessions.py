@@ -8,9 +8,8 @@ from typing import Union
 
 from tqdm import tqdm
 
+from uchida_lab_to_nwb.phillips_2025.convert_session import session_to_nwb
 from uchida_lab_to_nwb.phillips_2025.utils.subject_metadata import get_subject_metadata
-
-from .convert_session import session_to_nwb
 
 
 def get_session_to_nwb_kwargs_per_session(
@@ -62,7 +61,9 @@ def get_session_to_nwb_kwargs_per_session(
             subject_metadata = {}
             if subject_metadata_path is not None:
                 try:
-                    subject_metadata = get_subject_metadata(subject_id, subject_metadata_path)
+                    subject_metadata = get_subject_metadata(
+                        subject_id, subject_metadata_path
+                    )
                 except KeyError as exc:
                     print(f"  [WARNING] {exc}")
 
@@ -155,10 +156,20 @@ def dataset_to_nwb(
 if __name__ == "__main__":
     dataset_to_nwb(
         data_dir_path="H:/Uchida-CN-data-share/Hannah_data/M4-M7/Lone_data",
-        output_dir_path="C:/Users/amtra/CatalystNeuro/nwb_output/uchida",
+        output_dir_path="H:/uchida-nwbfiles",
         subject_metadata_path="H:/Uchida-CN-data-share/Subject metadata.xlsx",
         max_workers=1,
         stub_test=False,
-        overwrite=False,
+        overwrite=True,
+        verbose=True,
+    )
+
+    dataset_to_nwb(
+        data_dir_path="H:/Uchida-CN-data-share/Hannah_data/M4-M7/Social_data",
+        output_dir_path="H:/uchida-nwbfiles",
+        subject_metadata_path="H:/Uchida-CN-data-share/Subject metadata.xlsx",
+        max_workers=1,
+        stub_test=False,
+        overwrite=True,
         verbose=True,
     )

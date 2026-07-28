@@ -79,7 +79,7 @@ def _read_camera_frame_rate(videos_folder_path: Path) -> float:
 def session_to_nwb(
     session_dir_path: Union[str, Path],
     output_dir_path: Union[str, Path],
-    subject_metadata: dict | None = None,
+    subject_metadata: dict,
     stub_test: bool = False,
     overwrite: bool = False,
     verbose: bool = False,
@@ -101,9 +101,8 @@ def session_to_nwb(
         - ``videos/Camera1/metadata.csv``  — camera acquisition metadata (frameRate, etc.)
     output_dir_path : str or Path
         Directory where the NWB file will be written.
-    subject_metadata : dict, optional
+    subject_metadata : dict
         Per-subject NWB Subject fields (species, sex, age, strain, etc.).
-        When not provided, placeholders from ``metadata/phillips_2025_metadata.yaml`` are used.
     stub_test : bool
         If True, write a small stub file for quick testing.
     overwrite : bool
@@ -121,9 +120,19 @@ def session_to_nwb(
     """
     session_dir_path = Path(session_dir_path)
     output_dir_path = Path(output_dir_path)
+    subject_id = subject_metadata["subject_id"]
     if stub_test:
         output_dir_path = output_dir_path / "nwb_stub"
+    output_dir_path = output_dir_path / f"sub-{subject_id}"
     output_dir_path.mkdir(parents=True, exist_ok=True)
+
+    # ── Parse session_id from session directory ─────────────────
+    # pattern to parse: {data_directory}/{condition}_data/{day_number}/{subject_id}
+    day_dir_name = session_dir_path.parent.name
+    condition = session_dir_path.parent.parent.name.removesuffix("_data").lower()
+    session_id = f"{day_dir_name.replace('_', '-')}-{condition}"
+
+    nwbfile_path = output_dir_path / f"sub-{subject_id}_ses-{session_id}.nwb"
 
     # ── Discover files ────────────────────────────────────────────────────────
     pcampi_files = list(session_dir_path.glob("*.h5"))
@@ -135,19 +144,13 @@ def session_to_nwb(
     doric_file = doric_files[0]
 
     processed_mat = session_dir_path / "interpolated_campy_and_doric.mat"
-    dannce_mat = session_dir_path / "DANNCE" / "save_data_AVG0.mat"
+    dannce_mat = (
+        session_dir_path / "DANNCE" / "save_data_AVG0.mat"
+        if condition == "lone"
+        else session_dir_path / "sDANNCE" / "predict05" / "save_data_AVG0.mat"
+    )
     videos_folder_path = session_dir_path / "videos"
 
-    # ── Parse session_id and subject_id from pCampi filename ─────────────────
-    m = _PCAMPI_PATTERN.match(pcampi_file.name)
-    if m:
-        datetime_str, subject_id = m.group(1), m.group(2)
-        session_id = f"{datetime_str}_{subject_id}"
-    else:
-        subject_id = session_dir_path.name  # fallback
-        session_id = session_dir_path.name
-
-    nwbfile_path = output_dir_path / f"sub-{subject_id}_ses-{session_id}.nwb"
     if nwbfile_path.exists() and not overwrite and not stub_test:
         print(
             f"Skipping {nwbfile_path} (already exists). Pass overwrite=True to overwrite."
@@ -282,6 +285,11 @@ def session_to_nwb(
     # Layer 4: session-specific overrides
     metadata["NWBFile"]["session_id"] = session_id
     metadata["Subject"]["subject_id"] = subject_id
+
+    metadata["NWBFile"]["session_description"] = (
+        f"Experimental {day_dir_name.replace('_', ' ')}. Freely behaving rat in {condition} condition recorded with 6-camera multi-view video, "
+        f"3D pose estimation (DANNCE), and fiber photometry (Doric BBC300). "
+    )
 
     # Per-subject metadata from caller (species, sex, DOB, strain, etc.)
     if subject_metadata:
