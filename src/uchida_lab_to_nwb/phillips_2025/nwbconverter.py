@@ -94,14 +94,22 @@ class Phillips2025NWBConverter(NWBConverter):
       synchronized after the shift.
     """
 
+    # DANNCE must run first: NWBConverter.add_to_nwbfile() iterates data_interface_objects in this
+    # dict's order, and DoricFiberPhotometryInterface.add_to_nwbfile() calls neuroconv's
+    # add_fiber_photometry_devices(), which (as of neuroconv#<ISSUE_NUMBER>) blindly creates a plain
+    # Device for *every* entry in the shared metadata["Devices"] registry -- including DANNCE's
+    # Camera1..6 -- not just the fiber-photometry-owned ones. Device creation is idempotent on name
+    # (an existing device is returned unchanged), so running DANNCE first lets it create the real
+    # ndx_pose.CalibratedCamera Devices before add_fiber_photometry_devices() gets a chance to shadow
+    # them with plain Devices. Remove this ordering requirement once the upstream bug is fixed.
     data_interface_classes = dict(
+        DANNCE=DANNCEConverter,
         DoricControl=DoricFiberPhotometryInterface,
         DoricDopamineSignal=DoricFiberPhotometryInterface,
         InterpolatedFPControlSignal=ProcessedFiberPhotometryInterface,
         InterpolatedFPDopamineSignal=ProcessedFiberPhotometryInterface,
         PCampiSyncCampyTrigger=PCampiSyncInterface,
         PCampiSyncRbfmcFrames=PCampiSyncInterface,
-        DANNCE=DANNCEConverter,
     )
 
     def temporally_align_data_interfaces(

@@ -348,7 +348,7 @@ if __name__ == "__main__":
         session_dir_path="H:/Uchida-CN-data-share/Hannah_data/M4-M7/Lone_data/day_1/M4",
         output_dir_path="H:/uchida-nwbfiles",
         subject_metadata=_subject_meta,
-        stub_test=True,
+        stub_test=False,
         verbose=True,
         overwrite=True,
     )
