@@ -305,8 +305,6 @@ Internal code/repo work, not blocked on the lab:
 - **`ProcessedFiberPhotometryInterface`'s nominal-camera-rate timestamps are wrong for 10/12
   sessions** — blocked on the lab confirming the `interpolated_data` resampling grid (see Open
   Questions) before the interface's timestamp generation can be fixed.
-- **Social condition support** — extend `convert_session.py`/`nwbconverter.py` for 2-animal DANNCE
-  arrays and the `sDANNCE/predict05/` path (now uploaded, see File Inventory & Counts).
 - **Nodes Name** needs to be explicited, e.g. from EarL to EarLeft
 - **Location** needs to be explicited, e.g. from NAc to Nucleus Accumbens
 - **CalibratedCamera**--> add calibration parameters
