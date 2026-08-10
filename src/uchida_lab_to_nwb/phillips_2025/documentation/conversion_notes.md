@@ -193,8 +193,10 @@ Dependencies (`pyproject.toml`, `[phillips_2025]` extra): `neuroconv` (from the
   `Subject metadata.xlsx` (transposed: rows=fields, columns=subjects) and returns `subject_id`,
   `species`, `strain`, `genotype`, `sex`, `description`, and (when present) `date_of_birth` and
   `weight`.
-- **`utils/constants.py`**: `SDANNCE_LANDMARK_NAMES` (23 rat23 joints: Snout, EarL/R,
-  Spine{F,M,L}, TailBase, Shoulder/Elbow/Wrist/Hand ×2, Hip/Knee/Ankle/Foot ×2) and
+- **`utils/constants.py`**: `SDANNCE_LANDMARK_NAMES` (23 rat23 joints, spelled out explicitly —
+  e.g. `EarLeft`/`EarRight`, `SpineFront`/`SpineMiddle`/`SpineLow`, `TailBase`,
+  `Shoulder`/`Elbow`/`Wrist`/`Hand` × `Left`/`Right`, `Hip`/`Knee`/`Ankle`/`Foot` × `Left`/`Right` —
+  rather than the abbreviated rat23.mat originals) and
   `SDANNCE_SKELETON_EDGES` (23 edges, from `diegoaldarondo/Label3D`'s `rat23.mat`, converted from
   1- to 0-based indices) — mirrors the same constants in `olveczky-lab-to-nwb`'s
   `klibaite_2025_rat` conversion, which uses the same rat23 DANNCE skeleton. `DANNCEInterface`'s
@@ -297,14 +299,7 @@ Items that need input from the lab (Hannah Phillips) before they can be resolved
 
 ## TODOs
 
-Internal code/repo work, not blocked on the lab:
+Internal code/repo work, not blocked on the lab. All resolved as of 2026-08-10:
 
-- **Frame-count mismatch** (90,074 `campy_trigger` pulses vs. 90,000 saved frames) is unresolved;
-  the current alignment uses a single `set_aligned_starting_time()` shift (not a per-frame
-  correspondence) so it isn't blocked by this, but a future per-frame-accurate alignment would be.
-- **`ProcessedFiberPhotometryInterface`'s nominal-camera-rate timestamps are wrong for 10/12
-  sessions** — blocked on the lab confirming the `interpolated_data` resampling grid (see Open
-  Questions) before the interface's timestamp generation can be fixed.
-- **Nodes Name** needs to be explicited, e.g. from EarL to EarLeft
-- **Location** needs to be explicited, e.g. from NAc to Nucleus Accumbens
-- **CalibratedCamera**--> add calibration parameters
+- Add **HED** table
+- Add **HERD** table

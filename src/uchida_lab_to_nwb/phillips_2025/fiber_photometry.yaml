@@ -208,7 +208,7 @@ FiberPhotometry:
       GRABDA3m. Both indicators co-injected at NAc and TS.
     rows:
       row_control_NAc:
-        location: "NAc"
+        location: "Nucleus Accumbens"
         excitation_wavelength_in_nm: 568.0
         emission_wavelength_in_nm: 581.0
         indicator_metadata_key: tdTomato
@@ -216,7 +216,7 @@ FiberPhotometry:
         excitation_source_metadata_key: excitation_source_control
         photodetector_metadata_key: photodetector_BFPD
       row_dopamine_signal_NAc:
-        location: "NAc"
+        location: "Nucleus Accumbens"
         excitation_wavelength_in_nm: 473.0
         emission_wavelength_in_nm: 520.0
         indicator_metadata_key: GRABDA3m
@@ -224,7 +224,7 @@ FiberPhotometry:
         excitation_source_metadata_key: excitation_source_dopamine_signal
         photodetector_metadata_key: photodetector_BFPD
       row_control_TS:
-        location: "TS"
+        location: "Tail of Striatum"
         excitation_wavelength_in_nm: 568.0
         emission_wavelength_in_nm: 581.0
         indicator_metadata_key: tdTomato
@@ -232,7 +232,7 @@ FiberPhotometry:
         excitation_source_metadata_key: excitation_source_control
         photodetector_metadata_key: photodetector_BFPD
       row_dopamine_signal_TS:
-        location: "TS"
+        location: "Tail of Striatum"
         excitation_wavelength_in_nm: 473.0
         emission_wavelength_in_nm: 520.0
         indicator_metadata_key: GRABDA3m
