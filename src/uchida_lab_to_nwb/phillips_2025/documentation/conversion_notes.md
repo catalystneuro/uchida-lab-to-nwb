@@ -274,8 +274,7 @@ filename timestamp) is the NWB time base every aligned stream above is shifted o
 
 Items that need input from the lab (Hannah Phillips) before they can be resolved:
 
-- **ROI03**: the Doric file has 3 ROI signals per excitation channel, but only 2 implants
-  (NAc, TS) are confirmed — what does ROI03 correspond to?
+- **Left/Right** hemisfere implants.
 - **`dff_resG` identity** (`processed_dff.mat`): which ROI/channel does this single dF/F trace
   correspond to, and why only one trace instead of 4 (2 ROIs × 2 channels)?
 - **`rbfmc_frames` (pCampi channel 1) all-zero**: reads as all-zero in every session inspected —
@@ -308,3 +307,6 @@ Internal code/repo work, not blocked on the lab:
   Questions) before the interface's timestamp generation can be fixed.
 - **Social condition support** — extend `convert_session.py`/`nwbconverter.py` for 2-animal DANNCE
   arrays and the `sDANNCE/predict05/` path (now uploaded, see File Inventory & Counts).
+- **Nodes Name** needs to be explicited, e.g. from EarL to EarLeft
+- **Location** needs to be explicited, e.g. from NAc to Nucleus Accumbens
+- **CalibratedCamera**--> add calibration parameters
