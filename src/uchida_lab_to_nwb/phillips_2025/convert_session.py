@@ -13,9 +13,11 @@ from uchida_lab_to_nwb.phillips_2025.interfaces import PCampiSyncInterface
 from uchida_lab_to_nwb.phillips_2025.nwbconverter import (
     Phillips2025NWBConverter,
 )
-from uchida_lab_to_nwb.phillips_2025.utils.constants import (
+from uchida_lab_to_nwb.phillips_2025.utils import (
+    BRAIN_REGION_ONTOLOGY_MAPPING,
     SDANNCE_LANDMARK_NAMES,
     SDANNCE_SKELETON_EDGES,
+    get_anatomy_ontology_mapping,
 )
 
 # Harvard is in the Eastern timezone
@@ -244,6 +246,13 @@ def session_to_nwb(
     # Layer 3b: fiber photometry hardware metadata
     fp_yaml_path = Path(__file__).parent / "fiber_photometry.yaml"
     metadata = dict_deep_update(metadata, load_dict_from_file(fp_yaml_path))
+
+    # HERD ontology annotation: Subject.species (Rattus norvegicus) and Subject.strain
+    # ("Long Evans" -> NeuroConv's "Long-Evans" alias) both resolve automatically via
+    # NeuroConv's curated tables. The FiberPhotometryTable's "location" values (NAc, TS) and the
+    # rat23 skeleton's node names don't, so map both explicitly (see constants.py docstrings).
+    metadata["BrainRegions"] = BRAIN_REGION_ONTOLOGY_MAPPING
+    metadata["Anatomy"] = get_anatomy_ontology_mapping()
 
     # Each DoricFiberPhotometryInterface seeds a placeholder "row0" FiberPhotometryTable row
     # and "indicator" FiberPhotometryIndicators entry by default (get_default_fiber_photometry_
