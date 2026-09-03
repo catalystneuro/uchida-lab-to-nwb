@@ -1,9 +1,9 @@
-name: uchida_lab_to_nwb_env
+name: uchida-lab-to-nwb-env
 channels:
   - conda-forge
   - defaults
 dependencies:
-  - python>=3.11
+  - python>=3.11,<3.13
   - pip
   - pip:
-    - --editable ".[phillips_2025]"
+      - --editable .
