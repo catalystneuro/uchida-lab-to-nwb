@@ -10,18 +10,23 @@ from neuroconv.tools.signal_processing import (
 )
 
 from uchida_lab_to_nwb.phillips_2025.interfaces import (
+    DffFiberPhotometryInterface,
     PCampiSyncInterface,
     ProcessedFiberPhotometryInterface,
 )
 
 # Interfaces whose native timestamps are on the Doric BBC300 clock (raw fiber photometry) or a
-# nominal clock derived from it (processed/interpolated photometry) -- see
-# temporally_align_data_interfaces().
+# nominal clock derived from it (processed/interpolated/dF/F photometry) -- see
+# temporally_align_data_interfaces(). DffDopamineSignal is ad hoc / off by default (see
+# interfaces/dff_fiber_photometry_interface.py and convert_session.py's commented-out
+# DffDopamineSignal block); listing it here just means that *when* it is instantiated, it gets
+# the same clock treatment as InterpolatedFPDopamineSignal, which it's derived from.
 _DORIC_ALIGNED_INTERFACE_KEYS = (
     "DoricControl",
     "DoricDopamineSignal",
     "InterpolatedFPControlSignal",
     "InterpolatedFPDopamineSignal",
+    "DffDopamineSignal",
 )
 
 DORIC_SYNC_STREAM_NAME = "BBC300_Signals_Series0001_DigitalIO_DigitalCh1"
@@ -59,6 +64,11 @@ class Phillips2025NWBConverter(NWBConverter):
       ``ProcessedFiberPhotometryInterface`` per channel (interpolated_campy_and_doric.mat).
       Raw ROI fluorescence (not dF/F); written to processing/ophys, reusing the
       FiberPhotometryTable created by the raw Doric interfaces.
+    - DffDopamineSignal: lab-computed dF/F (processed_dff.mat), one ``DffFiberPhotometryInterface``.
+      AD HOC / OFF BY DEFAULT -- see that interface's module docstring. Registered here, but
+      ``convert_session.py`` never adds it to ``source_data`` -- the code that would (and the
+      matching ``fiber_photometry_dff_dopamine_signal`` block in ``fiber_photometry.yaml``) is
+      commented out; both need uncommenting to use it.
     - PCampiSync{CampyTrigger,RbfmcFrames}: pCampi LabVIEW TTL synchronization pulses (.h5), one
       ``PCampiSyncInterface`` per digital channel (see ``interfaces/pcampi_sync_interface.py``;
       ``PCampiSyncInterface.get_available_channels()`` discovers the channel names in a given
@@ -108,6 +118,8 @@ class Phillips2025NWBConverter(NWBConverter):
         DoricDopamineSignal=DoricFiberPhotometryInterface,
         InterpolatedFPControlSignal=ProcessedFiberPhotometryInterface,
         InterpolatedFPDopamineSignal=ProcessedFiberPhotometryInterface,
+        # Ad hoc / off by default -- see interfaces/dff_fiber_photometry_interface.py.
+        DffDopamineSignal=DffFiberPhotometryInterface,
         PCampiSyncCampyTrigger=PCampiSyncInterface,
         PCampiSyncRbfmcFrames=PCampiSyncInterface,
     )

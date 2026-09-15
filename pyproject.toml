@@ -30,8 +30,12 @@ dependencies = [
     "opencv-python-headless",
 ]
 
-[project.urls]
-Repository = "https://github.com/catalystneuro/uchida-lab-to-nwb"
+[dependency-groups]
+dev = [
+    "pre-commit",
+    "pytest",
+    "ruff",
+]
 
 [tool.hatch.metadata]
 allow-direct-references = true

@@ -288,3 +288,28 @@ FiberPhotometry:
     fiber_photometry_table_region:
       [row_dopamine_signal_NAc, row_dopamine_signal_TS]
     fiber_photometry_table_region_description: "FiberPhotometryTable rows: NAc and TS, dopamine_signal (473 nm), GRABDA3m."
+
+  # ── AD HOC: lab-computed dF/F (processed_dff.mat), COMMENTED OUT ──────────
+  #
+  # DffFiberPhotometryInterface (interfaces/dff_fiber_photometry_interface.py) exists and is
+  # registered in Phillips2025NWBConverter, but convert_session.py's use of it is commented out
+  # by default (the DffFiberPhotometryInterface import near the top of that file, and the two
+  # blocks inside session_to_nwb() -- search for "DffDopamineSignal"). This metadata block has to
+  # be uncommented too, together with those, or add_to_nwbfile() will raise ("FiberPhotometryTable
+  # is provided but response series ... has no fiber_photometry_table_region"), since the shared
+  # FiberPhotometryTable already exists from the confirmed series above. Uncomment all of it to
+  # use the interface; convert_session.py trims fiber_photometry_table_region to a single row
+  # (NAc only) at runtime for M4 sessions, which have no dff_resG2.
+  #
+  # Row mapping is an UNCONFIRMED ASSUMPTION, not confirmed by the lab: dff_resG -> NAc,
+  # dff_resG2 -> TS. dff_resG2 is present only for M5/M7 sessions (8 of 12 in the share); M4
+  # sessions have only dff_resG.
+  #
+  # fiber_photometry_dff_dopamine_signal:
+  #   name: FiberPhotometryDffDopamineSignal
+  #   description: >-
+  #     UNCONFIRMED / ad hoc: lab-computed dF/F of the GRABDA3m dopamine-signal channel.
+  #   unit: a.u
+  #   fiber_photometry_table_region: [row_dopamine_signal_NAc, row_dopamine_signal_TS]
+  #   fiber_photometry_table_region_description: >-
+  #     FiberPhotometryTable rows: NAc and TS, dopamine_signal (473 nm), GRABDA3m.

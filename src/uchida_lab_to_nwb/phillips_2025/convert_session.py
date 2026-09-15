@@ -10,6 +10,11 @@ from zoneinfo import ZoneInfo
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 
 from uchida_lab_to_nwb.phillips_2025.interfaces import PCampiSyncInterface
+
+# AD HOC, off by default -- uncomment alongside the DffDopamineSignal block below to enable
+# DffFiberPhotometryInterface (see that block's comment, and interfaces/dff_fiber_photometry_
+# interface.py's module docstring, for why it's off).
+# from uchida_lab_to_nwb.phillips_2025.interfaces import DffFiberPhotometryInterface
 from uchida_lab_to_nwb.phillips_2025.nwbconverter import (
     Phillips2025NWBConverter,
 )
@@ -95,6 +100,8 @@ def session_to_nwb(
         - ``YYYYMMDD_HHMMSS_M{id}.h5``    — pCampi sync file
         - ``BBC300_Acq_*.doric``           — raw Doric photometry
         - ``interpolated_campy_and_doric.mat``      — processed (interpolated) fiber photometry
+        - ``processed_dff.mat``            — lab-computed dF/F; NOT read by default, see the
+          commented-out "DffDopamineSignal" block below
         - ``DANNCE/save_data_AVG0.mat``    — DANNCE pose output
         - ``calibration/calibration.json`` — 6-camera calibration (+ hires_camN_params.mat)
         - ``videos/Camera{1..6}/0.mp4``    — per-camera videos
@@ -144,6 +151,8 @@ def session_to_nwb(
     doric_file = doric_files[0]
 
     processed_mat = session_dir_path / "interpolated_campy_and_doric.mat"
+    # AD HOC, COMMENTED OUT BY DEFAULT -- uncomment alongside the DffDopamineSignal block below.
+    # dff_mat = session_dir_path / "processed_dff.mat"
     dannce_mat = (
         session_dir_path / "DANNCE" / "save_data_AVG0.mat"
         if condition == "lone"
@@ -200,6 +209,29 @@ def session_to_nwb(
                 metadata_key=config["metadata_key"],
             )
             conversion_options[key] = dict(stub_test=stub_test)
+
+    # AD HOC, COMMENTED OUT BY DEFAULT. Hannah Phillips asked (2026-09-15) to exclude
+    # processed_dff.mat from the conversion until the lab confirms what dff_resG / dff_resG2
+    # represent and why their numeric scale is inconsistent across sessions (see
+    # interfaces/dff_fiber_photometry_interface.py's module docstring and
+    # documentation/conversion_notes.md, Open Questions).
+    #
+    # To use it: uncomment this block, the DffFiberPhotometryInterface import at the top of this
+    # file, AND the fiber_photometry_dff_dopamine_signal block at the bottom of
+    # fiber_photometry.yaml (all three, or add_to_nwbfile() raises -- see that yaml block's
+    # comment for why). Streams are discovered rather than hard-coded: M4 sessions have only
+    # dff_resG, M5/M7 sessions have dff_resG and dff_resG2.
+    #
+    # if dff_mat.is_file() and videos_folder_path.is_dir():
+    #     dff_camera_frame_rate = _read_camera_frame_rate(videos_folder_path)
+    #     available_dff_streams = DffFiberPhotometryInterface.get_available_streams(dff_mat)
+    #     source_data["DffDopamineSignal"] = dict(
+    #         file_path=str(dff_mat),
+    #         sampling_rate=dff_camera_frame_rate,
+    #         stream_names=available_dff_streams,
+    #         metadata_key="fiber_photometry_dff_dopamine_signal",
+    #     )
+    #     conversion_options["DffDopamineSignal"] = dict(stub_test=stub_test)
 
     # DANNCE pose estimation + 6-camera video (combined via DANNCEConverter). No
     # frametimes_file_path is passed; instead DANNCE pose timestamps are computed
@@ -281,6 +313,19 @@ def session_to_nwb(
     }
     for _key, _region in _fp_table_region_by_key.items():
         metadata["FiberPhotometry"][_key]["fiber_photometry_table_region"] = _region
+
+    # AD HOC, COMMENTED OUT BY DEFAULT -- uncomment alongside the DffDopamineSignal block above
+    # (and fiber_photometry.yaml's fiber_photometry_dff_dopamine_signal block) to use
+    # DffFiberPhotometryInterface. Trims the dF/F series' table region to just the rows this
+    # session has data for (M4 sessions have no dff_resG2 -> TS); the yaml entry's region always
+    # lists both rows, since it doesn't know per-session which streams exist.
+    #
+    # _dff_key = "fiber_photometry_dff_dopamine_signal"
+    # if "DffDopamineSignal" in source_data:
+    #     _dff_region = ["row_dopamine_signal_NAc"]
+    #     if "dff_resG2" in source_data["DffDopamineSignal"]["stream_names"]:
+    #         _dff_region.append("row_dopamine_signal_TS")
+    #     metadata["FiberPhotometry"][_dff_key]["fiber_photometry_table_region"] = _dff_region
 
     # Layer 4: session-specific overrides
     metadata["NWBFile"]["session_id"] = session_id

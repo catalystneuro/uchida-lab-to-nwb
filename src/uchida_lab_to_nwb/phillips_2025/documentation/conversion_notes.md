@@ -31,8 +31,14 @@ facility; see `olveczky-lab-to-nwb`).
 | Subject metadata | XLSX (lab-provided) | `Subject metadata.xlsx` | `Subject`, via `utils/subject_metadata.get_subject_metadata()` |
 
 Not converted:
-- **`processed_dff.mat`** (single untagged dF/F trace, `dff_resG`) — not per-ROI/per-channel, no
-  labels; skipped until the lab clarifies what it represents (see Open Questions).
+- **`processed_dff.mat`** (`dff_resG`, and `dff_resG2` for M5/M7 sessions) — We exclude this from the conversion for now, but prepare interface for the future dff computation:
+  `DffFiberPhotometryInterface` (`interfaces/dff_fiber_photometry_interface.py`) exists and is
+  registered in `Phillips2025NWBConverter`, but is **commented out by default** in
+  `convert_session.py`: the `DffFiberPhotometryInterface` import near the top of the file, and
+  the two blocks inside `session_to_nwb()` that build its `source_data` entry and trim its
+  `fiber_photometry_table_region` (search for "DffDopamineSignal"), are all commented out, with
+  a matching commented-out `fiber_photometry_dff_dopamine_signal` block at the bottom of
+  `fiber_photometry.yaml`. All of it has to be uncommented together to use the interface 
 - **`Channels.csv`** (per-animal, 21.6M rows) — derived envelope/RMS feature used only as sleep/
   seizure-scoring input, not raw data; will not be republished.
 
@@ -71,8 +77,8 @@ Social_data/
                                              # each subject has its own file on day_2
       BBC300_Acq_*.doric                     # raw Doric fiber photometry
       interpolated_campy_and_doric.mat       # lab-processed photometry
-      processed_dff.mat                      # single untagged dF/F trace (not converted; also
-                                              # present in Lone_data)
+      processed_dff.mat                      # dff_resG (+ dff_resG2 for M5/M7); not converted,
+                                              # also present in Lone_data — see "Not converted" above
       sDANNCE/predict05/                     # 3D pose predictions — note folder name `sDANNCE`
         save_data_AVG0.mat                   # (not `DANNCE`, as in Lone_data), plus intermediate
         save_data_AVG.mat                    # DANNCE pipeline artifacts (`init_save_data_AVG.mat`,
@@ -91,21 +97,24 @@ Repository (`src/uchida_lab_to_nwb/phillips_2025/`):
 
 ```text
 phillips_2025/
-├── nwbconverter.py              # Phillips2025NWBConverter — 7 interface slots
+├── nwbconverter.py              # Phillips2025NWBConverter — 8 interface slots
 ├── convert_session.py           # session_to_nwb() — one subject-session directory, one NWB file
 ├── convert_all_sessions.py      # discovers sessions, resolves subject metadata, batch-converts
 ├── general_metadata.yaml        # static NWBFile metadata
-├── fiber_photometry.yaml        # fiber photometry hardware metadata (devices, indicators, table)
+├── fiber_photometry.yaml        # fiber photometry hardware metadata (devices, indicators, table);
+│                                 # ends with a commented-out AD HOC block for DffFiberPhotometryInterface
 ├── interfaces/
-│   ├── pcampi_sync_interface.py             # PCampiSyncInterface (custom)
-│   └── processed_fiber_photometry_interface.py  # ProcessedFiberPhotometryInterface (custom)
+│   ├── pcampi_sync_interface.py                  # PCampiSyncInterface (custom)
+│   ├── processed_fiber_photometry_interface.py   # ProcessedFiberPhotometryInterface (custom)
+│   └── dff_fiber_photometry_interface.py         # DffFiberPhotometryInterface (custom, AD HOC — registered but its use in convert_session.py is commented out by default)
 ├── utils/
 │   └── subject_metadata.py       # get_subject_metadata() (reads Subject metadata.xlsx)
 └── documentation/
     ├── conversion_notes.md        # this file
     ├── project_track.md           # conversion progress tracker
     ├── explore_sync_signals.py    # ad hoc exploration of the pCampi/Doric sync signals
-    └── inspect_data.py            # ad hoc script for inspecting an output NWB file (not a test suite)
+    ├── inspect_data.py            # ad hoc script for inspecting an output NWB file (not a test suite)
+    └── dff_interface_example.py   # recipe for producing one NWB file with the ad hoc dF/F series included
 ```
 
 Raw Doric fiber photometry (`DoricFiberPhotometryInterface`) and DANNCE pose + video
@@ -277,8 +286,11 @@ filename timestamp) is the NWB time base every aligned stream above is shifted o
 Items that need input from the lab (Hannah Phillips) before they can be resolved:
 
 - **Left/Right** hemisfere implants.
-- **`dff_resG` identity** (`processed_dff.mat`): which ROI/channel does this single dF/F trace
-  correspond to, and why only one trace instead of 4 (2 ROIs × 2 channels)?
+- **`dff_resG`/`dff_resG2` identity** (`processed_dff.mat`): inspected all 12 sessions directly
+  (`h5py`, MATLAB v7.3) — 8 of 12 (all M5, M7 sessions) actually carry **two** variables,
+  `dff_resG` and `dff_resG2`; only the 4 M4 sessions have a single `dff_resG`. The M4-only-one-
+  trace split is exact across both conditions/days, so likely a real single-implant difference for
+  M4 (ties into the Left/Right implant question below) rather than random dropout. 
 - **`rbfmc_frames` (pCampi channel 1) all-zero**: reads as all-zero in every session inspected —
   acquisition-side wiring issue to flag to the lab (no longer blocking: `DigitalCh1` on the Doric
   side turned out to carry the same sync pulses instead — see Temporal Alignment).
