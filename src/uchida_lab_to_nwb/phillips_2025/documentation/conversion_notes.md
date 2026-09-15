@@ -223,7 +223,9 @@ Dependencies (`pyproject.toml`, `[phillips_2025]` extra): `neuroconv` (from the
 
 **Status: pCampi ↔ Doric offset alignment implemented (single scalar offset, from one edge pair).**
 The original `rbfmc_frames` (pCampi channel 1, intended to carry Doric BBC300 Camera1 sync pulses)
-is entirely zero for the full session in every `.h5` file inspected. The working sync path was
+is entirely zero for the full session in every `.h5` file inspected — per Hannah Phillips (2026-09-15
+midway meeting), likely due to an old rig setting, not a per-session acquisition fault. The working
+sync path was
 found on the *Doric* side instead: `DigitalCh1` ("DIO BNC \| Ch.1", an external BNC digital input)
 carries the same physical TTL pulse train as pCampi's `campy_trigger`, just sampled by Doric's own
 independent 1 kHz clock instead of pCampi's NIDAQ.
@@ -293,9 +295,11 @@ Items that need input from the lab (Hannah Phillips) before they can be resolved
   `dff_resG` and `dff_resG2`; only the 4 M4 sessions have a single `dff_resG`. The M4-only-one-
   trace split is exact across both conditions/days, so likely a real single-implant difference for
   M4 (ties into the Left/Right implant question below) rather than random dropout. 
-- **`rbfmc_frames` (pCampi channel 1) all-zero**: reads as all-zero in every session inspected —
-  acquisition-side wiring issue to flag to the lab (no longer blocking: `DigitalCh1` on the Doric
-  side turned out to carry the same sync pulses instead — see Temporal Alignment).
+- **`rbfmc_frames` (pCampi channel 1) all-zero**: reads as all-zero in every session inspected.
+  Resolved at the 2026-09-15 midway meeting: per Hannah Phillips, likely due to an old rig setting
+  (no longer under investigation as an acquisition fault; no longer blocking either way, since
+  `DigitalCh1` on the Doric side turned out to carry the same sync pulses instead — see Temporal
+  Alignment).
 - **Social condition — shared pCampi/Doric recording**: on day_1, M5 and M7 point at the same
   `.h5`/`.doric` files — confirm with the lab whether this reflects one shared photometry rig for
   the pair or a labeling artifact in the share, and how `session_id`/subject assignment should
