@@ -158,7 +158,10 @@ Raw Doric fiber photometry (`DoricFiberPhotometryInterface`) and DANNCE pose + v
 
 ## Existing Resources
 
-
+- `interpolate_campy_and_doric2_clean.m` — the Uchida lab's own MATLAB
+  script for aligning Doric photometry to Campy video frames via the Campy trigger signal on Doric
+  DIO1 (`DigitalCh1`); shared by Hannah Phillips at the 2026-09-15 midway meeting. Used to confirm
+  the `interpolated_data` resampling grid — see Temporal Alignment and Open Questions.
 
 ## Interface Mapping
 
@@ -248,11 +251,20 @@ independent 1 kHz clock instead of pCampi's NIDAQ.
    dropping each side's marker pulse): the two methods agree to within the ~20 ms clock drift
    measured over the session (~-12 ppm over ~30 minutes, consistent with independent clock
    crystals on the same physical pulse train), so the single-marker-pulse offset is used.
-4. That offset is applied via `BaseTemporalAlignmentInterface.set_aligned_starting_time()` to every
-   Doric-photometry-derived interface: `DoricControl`, `DoricDopamineSignal` (raw, native Doric
-   clock) and `InterpolatedFPControlSignal`, `InterpolatedFPDopamineSignal` (nominal camera-rate
-   clock, `starting_time=0.0` before alignment).
-5. Separately, `DANNCE` (pose + all 6 videos, which share one native "elapsed seconds since
+4. That offset is applied via `BaseTemporalAlignmentInterface.set_aligned_starting_time()` to the raw
+   Doric interfaces, `DoricControl`/`DoricDopamineSignal` (native Doric clock).
+5. `InterpolatedFPControlSignal`/`InterpolatedFPDopamineSignal` (and `DffDopamineSignal`, when
+   enabled) get real per-sample timestamps instead of a nominal camera-rate approximation:
+   `_compute_doric_trigger_pulse_timestamps()` (`nwbconverter.py`) reproduces the Uchida lab's own
+   MATLAB alignment logic (`interpolate_campy_and_doric2_clean.m`, shared by Hannah Phillips at the
+   2026-09-15 midway meeting) — the rising edges of `DigitalCh1`, with an extra implicit edge
+   prepended at `t=0` because the signal is already HIGH at the very first Doric sample (mirroring
+   the MATLAB script's `if dio1_triggers(1) == 1` branch). When this timestamp count matches
+   `interpolated_campy_and_doric.mat`'s sample count exactly (verified true for 9 of the 12 sessions
+   in the share, 2026-09-15), those timestamps (shifted by the same pCampi↔Doric offset) are written
+   directly. For the 3 sessions where it doesn't match (see below), this falls back to the previous
+   nominal-camera-rate `set_aligned_starting_time()` shift, with a runtime warning.
+6. Separately, `DANNCE` (pose + all 6 videos, which share one native "elapsed seconds since
    recording start" clock from each camera's `frametimes.npy`) is anchored via
    `set_aligned_starting_time()` to the first non-spurious **rising** edge of the pCampi
    `campy_trigger` train (`drop_spurious_leading_edges()`, defined in `nwbconverter.py`, applied to
@@ -270,13 +282,16 @@ matter for any future per-frame-accurate alignment. Checked across all 12 sessio
 `campy_trigger` rising edges − saved frames = +68 to +78, mean +74), so this is systematic, not a
 one-off for M4/day 1.
 
-That same all-session check turned up an unrelated, more surprising discrepancy: in 10 of the 12
+That same all-session check turned up an unrelated, more surprising discrepancy: in 9 of the 12
 sessions, `interpolated_campy_and_doric.mat`'s `interpolated_data` sample count is not the saved
 video frame count at all — it is `n_clean_campy_rising_edges + 1` (one sample per real trigger
-pulse, plus an initial t=0 sample), diverging from the frame count by the same ~70-78. Only 2
-sessions (`Lone/day_1/M7`, `Social/day_1/M4`) land exactly on the frame count instead. See Open
-Questions — `ProcessedFiberPhotometryInterface`'s nominal-camera-rate timestamps assume the frame
-grid, which is wrong for most sessions.
+pulse, plus an initial t=0 sample), diverging from the frame count by the same ~70-78. The other 3
+sessions (`Lone/day_1/M7`, `Social/day_1/M4`, `Social/day_1/M7`) land exactly on the saved frame
+count instead — confirmed **resolved as a lab-side inconsistency, not a bug in this repo**, after
+Hannah Phillips shared the MATLAB alignment script at the 2026-09-15 midway meeting (see step 5
+above and Open Questions): those 3 sessions' `.mat` files appear to have been produced by a
+different pipeline run than the other 9. `ProcessedFiberPhotometryInterface`'s nominal-camera-rate
+timestamps are now only a fallback for those 3 sessions, not the default for all of them.
 See https://claude.ai/code/artifact/2979af36-32b7-4135-a869-ceab195a41a2
 
 `NWBFile.session_start_time` is set from the pCampi filename (`PCampiSyncInterface` is the only
@@ -293,19 +308,7 @@ Items that need input from the lab (Hannah Phillips) before they can be resolved
   `dff_resG` and `dff_resG2`; only the 4 M4 sessions have a single `dff_resG`. The M4-only-one-
   trace split is exact across both conditions/days, so likely a real single-implant difference for
   M4 (ties into the Left/Right implant question below) rather than random dropout. 
-- **`rbfmc_frames` (pCampi channel 1) all-zero**: reads as all-zero in every session inspected.
-  Resolved at the 2026-09-15 midway meeting: per Hannah Phillips, likely due to an old rig setting
-  (no longer under investigation as an acquisition fault; no longer blocking either way, since
-  `DigitalCh1` on the Doric side turned out to carry the same sync pulses instead — see Temporal
-  Alignment).
-- **`interpolated_data` resampling grid is inconsistent across sessions**: checked all 12 sessions
-  in the share — `interpolated_campy_and_doric.mat`'s `interpolated_data` sample count matches
-  `n_clean_campy_rising_edges + 1` (the pCampi trigger-pulse grid, not the saved-video-frame grid)
-  in 10 of 12 sessions, but matches the saved frame count exactly in the other 2
-  (`Lone/day_1/M7`, `Social/day_1/M4`). Ask the lab which grid the MATLAB interpolation pipeline is
-  actually supposed to produce, and why 2 sessions differ — `ProcessedFiberPhotometryInterface`
-  currently assumes the frame grid unconditionally (nominal timestamps from the camera frame rate),
-  which is wrong for the 10 sessions on the trigger grid.
+
 - **SFARI grant number + CC-BY-4.0 license** — ask Nao Uchida directly.
 - **ORCIDs / contributors / publication DOI** — defer to manuscript stage.
 
