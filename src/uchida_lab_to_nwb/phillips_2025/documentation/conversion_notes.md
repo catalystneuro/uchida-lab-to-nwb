@@ -38,7 +38,9 @@ Not converted:
   the two blocks inside `session_to_nwb()` that build its `source_data` entry and trim its
   `fiber_photometry_table_region` (search for "DffDopamineSignal"), are all commented out, with
   a matching commented-out `fiber_photometry_dff_dopamine_signal` block at the bottom of
-  `fiber_photometry.yaml`. All of it has to be uncommented together to use the interface 
+  `fiber_photometry.yaml`. All of it has to be uncommented together to use the interface.
+  Confirmed as the go-forward plan at the 2026-09-15 midway meeting: keep the interface ready,
+  don't add the data to NWB files for now.
 - **`Channels.csv`** (per-animal, 21.6M rows) — derived envelope/RMS feature used only as sleep/
   seizure-scoring input, not raw data; will not be republished.
 
