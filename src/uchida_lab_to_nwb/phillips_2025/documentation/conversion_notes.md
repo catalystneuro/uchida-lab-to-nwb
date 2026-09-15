@@ -200,7 +200,11 @@ Dependencies (`pyproject.toml`, `[phillips_2025]` extra): `neuroconv` (from the
   tdTomato), and the `FiberPhotometryTable` (4 rows: ROI × channel) plus per-series metadata for
   all 4 response series (raw ×2, processed ×2). Naming convention: metadata keys use functional
   roles (`control`/`dopamine_signal`, `NAc`/`TS`), not raw hardware channel names (`EXC1`/`EXC2`,
-  `ROI01`/`ROI02`) — confirmed with the lab, 2026-07-23.
+  `ROI01`/`ROI02`) — confirmed with the lab, 2026-07-23. `optical_fiber_{NAc,TS}`'s
+  `fiber_insertion` carries only a placeholder hemisphere/ML sign (implant hemisphere is
+  randomized per animal); `convert_session.py` overrides both per subject
+  (`utils/subject_metadata.py::get_subject_fiber_hemispheres()`) from Hannah Phillips's confirmation ahead of the 2026-09-15 midway
+  meeting — see Open Questions.
 - **`utils/subject_metadata.py`**: `get_subject_metadata(subject_id, xlsx_path)` reads
   `Subject metadata.xlsx` (transposed: rows=fields, columns=subjects) and returns `subject_id`,
   `species`, `strain`, `genotype`, `sex`, `description`, and (when present) `date_of_birth` and
@@ -302,12 +306,6 @@ filename timestamp) is the NWB time base every aligned stream above is shifted o
 
 Items that need input from the lab (Hannah Phillips) before they can be resolved:
 
-- **Left/Right** hemisfere implants.
-- **`dff_resG`/`dff_resG2` identity** (`processed_dff.mat`): inspected all 12 sessions directly
-  (`h5py`, MATLAB v7.3) — 8 of 12 (all M5, M7 sessions) actually carry **two** variables,
-  `dff_resG` and `dff_resG2`; only the 4 M4 sessions have a single `dff_resG`. The M4-only-one-
-  trace split is exact across both conditions/days, so likely a real single-implant difference for
-  M4 (ties into the Left/Right implant question below) rather than random dropout. 
 
 - **SFARI grant number + CC-BY-4.0 license** — ask Nao Uchida directly.
 - **ORCIDs / contributors / publication DOI** — defer to manuscript stage.

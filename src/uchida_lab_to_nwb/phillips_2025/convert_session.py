@@ -22,6 +22,9 @@ from uchida_lab_to_nwb.phillips_2025.utils.constants import (
     SDANNCE_LANDMARK_NAMES,
     SDANNCE_SKELETON_EDGES,
 )
+from uchida_lab_to_nwb.phillips_2025.utils.subject_metadata import (
+    get_subject_fiber_hemispheres,
+)
 
 # Harvard is in the Eastern timezone
 _TIMEZONE = ZoneInfo("America/New_York")
@@ -294,6 +297,17 @@ def session_to_nwb(
         "photodetector_model",
     ):
         metadata["DeviceModels"].pop(_key, None)
+
+    # fiber_photometry.yaml's optical_fiber_{ROI} entries carry hemisphere="unknown" and an
+    # unsigned ML magnitude (implant hemisphere is randomized per animal, not fixed hardware).
+    # Fill in both per subject; device key follows the optical_fiber_{ROI} naming convention, so
+    # this generalizes to any ROI get_subject_fiber_hemispheres() returns without further changes.
+    for _roi, _hemisphere in get_subject_fiber_hemispheres(subject_id).items():
+        _fiber_insertion = metadata["Devices"][f"optical_fiber_{_roi}"]["fiber_insertion"]
+        _magnitude = abs(_fiber_insertion["insertion_position_ml_in_mm"])
+        _sign = 1.0 if _hemisphere == "right" else -1.0
+        _fiber_insertion["insertion_position_ml_in_mm"] = _sign * _magnitude
+        _fiber_insertion["hemisphere"] = _hemisphere
 
     # dict_deep_update concatenates lists rather than replacing them, so each series'
     # fiber_photometry_table_region ends up as ["row0", "row_..."] after the merge above;

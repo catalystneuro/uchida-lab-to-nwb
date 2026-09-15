@@ -8,6 +8,41 @@ from zoneinfo import ZoneInfo
 
 _TIMEZONE = ZoneInfo("America/New_York")
 
+# Per-subject fiber implant hemisphere -- not in Subject metadata.xlsx; confirmed by Hannah
+# Phillips by email ahead of the 2026-09-15 midway meeting. Used to fill in the placeholder
+# hemisphere/ML-sign in fiber_photometry.yaml's optical_fiber_{NAc,TS} entries.
+_SUBJECT_FIBER_HEMISPHERES = {
+    "M4": {"NAc": "right", "TS": "left"},
+    "M5": {"NAc": "right", "TS": "left"},
+    "M7": {"NAc": "left", "TS": "right"},
+}
+
+
+def get_subject_fiber_hemispheres(subject_id: str) -> dict[str, str]:
+    """Return the confirmed fiber implant hemisphere for one subject, keyed by ROI.
+
+    Parameters
+    ----------
+    subject_id : str
+        Subject identifier, e.g. ``"M4"``.
+
+    Returns
+    -------
+    dict
+        ``{"NAc": "left" or "right", "TS": "left" or "right"}``.
+
+    Raises
+    ------
+    KeyError
+        If ``subject_id`` has no confirmed hemisphere on record.
+    """
+    if subject_id not in _SUBJECT_FIBER_HEMISPHERES:
+        raise KeyError(
+            f"No confirmed fiber implant hemisphere for subject {subject_id!r}. Add it to "
+            "_SUBJECT_FIBER_HEMISPHERES (utils/subject_metadata.py)."
+        )
+    return _SUBJECT_FIBER_HEMISPHERES[subject_id]
+
 
 def get_subject_metadata(subject_id: str, xlsx_path: Path) -> dict:
     """Return NWB Subject metadata dict for one subject.
