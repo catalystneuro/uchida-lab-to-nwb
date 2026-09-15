@@ -73,10 +73,7 @@ subject-session directory, with two differences:
 Social_data/
   day_{1,2}/
     M{4,5,7}/
-      YYMMDD_HHMMSS_M{id}.h5                # pCampi sync — shared between the two paired
-                                             # subjects on day_1 (M5 and M7 both point at the
-                                             # same 240716_160054_M5.h5/BBC300_Acq_0146.doric);
-                                             # each subject has its own file on day_2
+      YYMMDD_HHMMSS_M{id}.h5                # pCampi sync — each subject has its own file
       BBC300_Acq_*.doric                     # raw Doric fiber photometry
       interpolated_campy_and_doric.mat       # lab-processed photometry
       processed_dff.mat                      # dff_resG (+ dff_resG2 for M5/M7); not converted,
@@ -128,9 +125,10 @@ Raw Doric fiber photometry (`DoricFiberPhotometryInterface`) and DANNCE pose + v
   (6 Lone + 6 Social subject-session directories).
 - **Social condition:** now uploaded, at
   `H:/Uchida-CN-data-share/Hannah_data/M4-M7/Social_data/{day_1,day_2}/M{4,5,7}/`.
-  - **day_1:** M5 and M7 share the same pCampi/Doric recording (`240716_160054_M5.h5`,
-    `BBC300_Acq_0146.doric`) — a genuine paired social session; M4's day_1 session
-    (`240716_152034_M4.h5`, `BBC300_Acq_0145.doric`) is a separate recording.
+  - **day_1:** M4, M5, M7 each have their own distinct pCampi/Doric files (M5: `240716_160054_M5.h5`/
+    `BBC300_Acq_0146.doric`; M7: `240716_172845_M7.h5`/`BBC300_Acq_0148.doric`; M4: `240716_152034_M4.h5`/
+    `BBC300_Acq_0145.doric`). M5 and M7 previously appeared to share the same recording in the
+    share — resolved: labeling artifact, fixed by Hannah re-uploading M7's own files (2026-09).
   - **day_2:** M4, M5, M7 each have their own distinct pCampi/Doric files — no shared recordings.
   - DANNCE output lives under `sDANNCE/predict05/` (not `DANNCE/` as in Lone_data) and includes
     extra pipeline artifacts alongside `save_data_AVG0.mat`. Confirmed `pred`/`data` shape
@@ -300,10 +298,6 @@ Items that need input from the lab (Hannah Phillips) before they can be resolved
   (no longer under investigation as an acquisition fault; no longer blocking either way, since
   `DigitalCh1` on the Doric side turned out to carry the same sync pulses instead — see Temporal
   Alignment).
-- **Social condition — shared pCampi/Doric recording**: on day_1, M5 and M7 point at the same
-  `.h5`/`.doric` files — confirm with the lab whether this reflects one shared photometry rig for
-  the pair or a labeling artifact in the share, and how `session_id`/subject assignment should
-  handle it.
 - **`interpolated_data` resampling grid is inconsistent across sessions**: checked all 12 sessions
   in the share — `interpolated_campy_and_doric.mat`'s `interpolated_data` sample count matches
   `n_clean_campy_rising_edges + 1` (the pCampi trigger-pulse grid, not the saved-video-frame grid)
