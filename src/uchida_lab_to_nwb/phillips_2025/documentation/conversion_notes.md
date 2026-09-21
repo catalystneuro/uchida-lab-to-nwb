@@ -31,8 +31,16 @@ facility; see `olveczky-lab-to-nwb`).
 | Subject metadata | XLSX (lab-provided) | `Subject metadata.xlsx` | `Subject`, via `utils/subject_metadata.get_subject_metadata()` |
 
 Not converted:
-- **`processed_dff.mat`** (single untagged dF/F trace, `dff_resG`) — not per-ROI/per-channel, no
-  labels; skipped until the lab clarifies what it represents (see Open Questions).
+- **`processed_dff.mat`** (`dff_resG`, and `dff_resG2` for M5/M7 sessions) — We exclude this from the conversion for now, but prepare interface for the future dff computation:
+  `DffFiberPhotometryInterface` (`interfaces/dff_fiber_photometry_interface.py`) exists and is
+  registered in `Phillips2025NWBConverter`, but is **commented out by default** in
+  `convert_session.py`: the `DffFiberPhotometryInterface` import near the top of the file, and
+  the two blocks inside `session_to_nwb()` that build its `source_data` entry and trim its
+  `fiber_photometry_table_region` (search for "DffDopamineSignal"), are all commented out, with
+  a matching commented-out `fiber_photometry_dff_dopamine_signal` block at the bottom of
+  `fiber_photometry.yaml`. All of it has to be uncommented together to use the interface.
+  Confirmed as the go-forward plan at the 2026-09-15 midway meeting: keep the interface ready,
+  don't add the data to NWB files for now.
 - **`Channels.csv`** (per-animal, 21.6M rows) — derived envelope/RMS feature used only as sleep/
   seizure-scoring input, not raw data; will not be republished.
 
@@ -65,14 +73,11 @@ subject-session directory, with two differences:
 Social_data/
   day_{1,2}/
     M{4,5,7}/
-      YYMMDD_HHMMSS_M{id}.h5                # pCampi sync — shared between the two paired
-                                             # subjects on day_1 (M5 and M7 both point at the
-                                             # same 240716_160054_M5.h5/BBC300_Acq_0146.doric);
-                                             # each subject has its own file on day_2
+      YYMMDD_HHMMSS_M{id}.h5                # pCampi sync — each subject has its own file
       BBC300_Acq_*.doric                     # raw Doric fiber photometry
       interpolated_campy_and_doric.mat       # lab-processed photometry
-      processed_dff.mat                      # single untagged dF/F trace (not converted; also
-                                              # present in Lone_data)
+      processed_dff.mat                      # dff_resG (+ dff_resG2 for M5/M7); not converted,
+                                              # also present in Lone_data — see "Not converted" above
       sDANNCE/predict05/                     # 3D pose predictions — note folder name `sDANNCE`
         save_data_AVG0.mat                   # (not `DANNCE`, as in Lone_data), plus intermediate
         save_data_AVG.mat                    # DANNCE pipeline artifacts (`init_save_data_AVG.mat`,
@@ -91,21 +96,24 @@ Repository (`src/uchida_lab_to_nwb/phillips_2025/`):
 
 ```text
 phillips_2025/
-├── nwbconverter.py              # Phillips2025NWBConverter — 7 interface slots
+├── nwbconverter.py              # Phillips2025NWBConverter — 8 interface slots
 ├── convert_session.py           # session_to_nwb() — one subject-session directory, one NWB file
 ├── convert_all_sessions.py      # discovers sessions, resolves subject metadata, batch-converts
 ├── general_metadata.yaml        # static NWBFile metadata
-├── fiber_photometry.yaml        # fiber photometry hardware metadata (devices, indicators, table)
+├── fiber_photometry.yaml        # fiber photometry hardware metadata (devices, indicators, table);
+│                                 # ends with a commented-out AD HOC block for DffFiberPhotometryInterface
 ├── interfaces/
-│   ├── pcampi_sync_interface.py             # PCampiSyncInterface (custom)
-│   └── processed_fiber_photometry_interface.py  # ProcessedFiberPhotometryInterface (custom)
+│   ├── pcampi_sync_interface.py                  # PCampiSyncInterface (custom)
+│   ├── processed_fiber_photometry_interface.py   # ProcessedFiberPhotometryInterface (custom)
+│   └── dff_fiber_photometry_interface.py         # DffFiberPhotometryInterface (custom, AD HOC — registered but its use in convert_session.py is commented out by default)
 ├── utils/
 │   └── subject_metadata.py       # get_subject_metadata() (reads Subject metadata.xlsx)
 └── documentation/
     ├── conversion_notes.md        # this file
     ├── project_track.md           # conversion progress tracker
     ├── explore_sync_signals.py    # ad hoc exploration of the pCampi/Doric sync signals
-    └── inspect_data.py            # ad hoc script for inspecting an output NWB file (not a test suite)
+    ├── inspect_data.py            # ad hoc script for inspecting an output NWB file (not a test suite)
+    └── dff_interface_example.py   # recipe for producing one NWB file with the ad hoc dF/F series included
 ```
 
 Raw Doric fiber photometry (`DoricFiberPhotometryInterface`) and DANNCE pose + video
@@ -117,9 +125,10 @@ Raw Doric fiber photometry (`DoricFiberPhotometryInterface`) and DANNCE pose + v
   (6 Lone + 6 Social subject-session directories).
 - **Social condition:** now uploaded, at
   `H:/Uchida-CN-data-share/Hannah_data/M4-M7/Social_data/{day_1,day_2}/M{4,5,7}/`.
-  - **day_1:** M5 and M7 share the same pCampi/Doric recording (`240716_160054_M5.h5`,
-    `BBC300_Acq_0146.doric`) — a genuine paired social session; M4's day_1 session
-    (`240716_152034_M4.h5`, `BBC300_Acq_0145.doric`) is a separate recording.
+  - **day_1:** M4, M5, M7 each have their own distinct pCampi/Doric files (M5: `240716_160054_M5.h5`/
+    `BBC300_Acq_0146.doric`; M7: `240716_172845_M7.h5`/`BBC300_Acq_0148.doric`; M4: `240716_152034_M4.h5`/
+    `BBC300_Acq_0145.doric`). M5 and M7 previously appeared to share the same recording in the
+    share — resolved: labeling artifact, fixed by Hannah re-uploading M7's own files (2026-09).
   - **day_2:** M4, M5, M7 each have their own distinct pCampi/Doric files — no shared recordings.
   - DANNCE output lives under `sDANNCE/predict05/` (not `DANNCE/` as in Lone_data) and includes
     extra pipeline artifacts alongside `save_data_AVG0.mat`. Confirmed `pred`/`data` shape
@@ -149,7 +158,10 @@ Raw Doric fiber photometry (`DoricFiberPhotometryInterface`) and DANNCE pose + v
 
 ## Existing Resources
 
-
+- `interpolate_campy_and_doric2_clean.m` — the Uchida lab's own MATLAB
+  script for aligning Doric photometry to Campy video frames via the Campy trigger signal on Doric
+  DIO1 (`DigitalCh1`); shared by Hannah Phillips at the 2026-09-15 midway meeting. Used to confirm
+  the `interpolated_data` resampling grid — see Temporal Alignment and Open Questions.
 
 ## Interface Mapping
 
@@ -188,7 +200,11 @@ Dependencies (`pyproject.toml`, `[phillips_2025]` extra): `neuroconv` (from the
   tdTomato), and the `FiberPhotometryTable` (4 rows: ROI × channel) plus per-series metadata for
   all 4 response series (raw ×2, processed ×2). Naming convention: metadata keys use functional
   roles (`control`/`dopamine_signal`, `NAc`/`TS`), not raw hardware channel names (`EXC1`/`EXC2`,
-  `ROI01`/`ROI02`) — confirmed with the lab, 2026-07-23.
+  `ROI01`/`ROI02`) — confirmed with the lab, 2026-07-23. `optical_fiber_{NAc,TS}`'s
+  `fiber_insertion` carries only a placeholder hemisphere/ML sign (implant hemisphere is
+  randomized per animal); `convert_session.py` overrides both per subject
+  (`utils/subject_metadata.py::get_subject_fiber_hemispheres()`) from Hannah Phillips's confirmation ahead of the 2026-09-15 midway
+  meeting — see Open Questions.
 - **`utils/subject_metadata.py`**: `get_subject_metadata(subject_id, xlsx_path)` reads
   `Subject metadata.xlsx` (transposed: rows=fields, columns=subjects) and returns `subject_id`,
   `species`, `strain`, `genotype`, `sex`, `description`, and (when present) `date_of_birth` and
@@ -212,7 +228,9 @@ Dependencies (`pyproject.toml`, `[phillips_2025]` extra): `neuroconv` (from the
 
 **Status: pCampi ↔ Doric offset alignment implemented (single scalar offset, from one edge pair).**
 The original `rbfmc_frames` (pCampi channel 1, intended to carry Doric BBC300 Camera1 sync pulses)
-is entirely zero for the full session in every `.h5` file inspected. The working sync path was
+is entirely zero for the full session in every `.h5` file inspected — per Hannah Phillips (2026-09-15
+midway meeting), likely due to an old rig setting, not a per-session acquisition fault. The working
+sync path was
 found on the *Doric* side instead: `DigitalCh1` ("DIO BNC \| Ch.1", an external BNC digital input)
 carries the same physical TTL pulse train as pCampi's `campy_trigger`, just sampled by Doric's own
 independent 1 kHz clock instead of pCampi's NIDAQ.
@@ -237,11 +255,20 @@ independent 1 kHz clock instead of pCampi's NIDAQ.
    dropping each side's marker pulse): the two methods agree to within the ~20 ms clock drift
    measured over the session (~-12 ppm over ~30 minutes, consistent with independent clock
    crystals on the same physical pulse train), so the single-marker-pulse offset is used.
-4. That offset is applied via `BaseTemporalAlignmentInterface.set_aligned_starting_time()` to every
-   Doric-photometry-derived interface: `DoricControl`, `DoricDopamineSignal` (raw, native Doric
-   clock) and `InterpolatedFPControlSignal`, `InterpolatedFPDopamineSignal` (nominal camera-rate
-   clock, `starting_time=0.0` before alignment).
-5. Separately, `DANNCE` (pose + all 6 videos, which share one native "elapsed seconds since
+4. That offset is applied via `BaseTemporalAlignmentInterface.set_aligned_starting_time()` to the raw
+   Doric interfaces, `DoricControl`/`DoricDopamineSignal` (native Doric clock).
+5. `InterpolatedFPControlSignal`/`InterpolatedFPDopamineSignal` (and `DffDopamineSignal`, when
+   enabled) get real per-sample timestamps instead of a nominal camera-rate approximation:
+   `_compute_doric_trigger_pulse_timestamps()` (`nwbconverter.py`) reproduces the Uchida lab's own
+   MATLAB alignment logic (`interpolate_campy_and_doric2_clean.m`, shared by Hannah Phillips at the
+   2026-09-15 midway meeting) — the rising edges of `DigitalCh1`, with an extra implicit edge
+   prepended at `t=0` because the signal is already HIGH at the very first Doric sample (mirroring
+   the MATLAB script's `if dio1_triggers(1) == 1` branch). When this timestamp count matches
+   `interpolated_campy_and_doric.mat`'s sample count exactly (verified true for 9 of the 12 sessions
+   in the share, 2026-09-15), those timestamps (shifted by the same pCampi↔Doric offset) are written
+   directly. For the 3 sessions where it doesn't match (see below), this falls back to the previous
+   nominal-camera-rate `set_aligned_starting_time()` shift, with a runtime warning.
+6. Separately, `DANNCE` (pose + all 6 videos, which share one native "elapsed seconds since
    recording start" clock from each camera's `frametimes.npy`) is anchored via
    `set_aligned_starting_time()` to the first non-spurious **rising** edge of the pCampi
    `campy_trigger` train (`drop_spurious_leading_edges()`, defined in `nwbconverter.py`, applied to
@@ -259,13 +286,16 @@ matter for any future per-frame-accurate alignment. Checked across all 12 sessio
 `campy_trigger` rising edges − saved frames = +68 to +78, mean +74), so this is systematic, not a
 one-off for M4/day 1.
 
-That same all-session check turned up an unrelated, more surprising discrepancy: in 10 of the 12
+That same all-session check turned up an unrelated, more surprising discrepancy: in 9 of the 12
 sessions, `interpolated_campy_and_doric.mat`'s `interpolated_data` sample count is not the saved
 video frame count at all — it is `n_clean_campy_rising_edges + 1` (one sample per real trigger
-pulse, plus an initial t=0 sample), diverging from the frame count by the same ~70-78. Only 2
-sessions (`Lone/day_1/M7`, `Social/day_1/M4`) land exactly on the frame count instead. See Open
-Questions — `ProcessedFiberPhotometryInterface`'s nominal-camera-rate timestamps assume the frame
-grid, which is wrong for most sessions.
+pulse, plus an initial t=0 sample), diverging from the frame count by the same ~70-78. The other 3
+sessions (`Lone/day_1/M7`, `Social/day_1/M4`, `Social/day_1/M7`) land exactly on the saved frame
+count instead — confirmed **resolved as a lab-side inconsistency, not a bug in this repo**, after
+Hannah Phillips shared the MATLAB alignment script at the 2026-09-15 midway meeting (see step 5
+above and Open Questions): those 3 sessions' `.mat` files appear to have been produced by a
+different pipeline run than the other 9. `ProcessedFiberPhotometryInterface`'s nominal-camera-rate
+timestamps are now only a fallback for those 3 sessions, not the default for all of them.
 See https://claude.ai/code/artifact/2979af36-32b7-4135-a869-ceab195a41a2
 
 `NWBFile.session_start_time` is set from the pCampi filename (`PCampiSyncInterface` is the only
@@ -276,24 +306,7 @@ filename timestamp) is the NWB time base every aligned stream above is shifted o
 
 Items that need input from the lab (Hannah Phillips) before they can be resolved:
 
-- **Left/Right** hemisfere implants.
-- **`dff_resG` identity** (`processed_dff.mat`): which ROI/channel does this single dF/F trace
-  correspond to, and why only one trace instead of 4 (2 ROIs × 2 channels)?
-- **`rbfmc_frames` (pCampi channel 1) all-zero**: reads as all-zero in every session inspected —
-  acquisition-side wiring issue to flag to the lab (no longer blocking: `DigitalCh1` on the Doric
-  side turned out to carry the same sync pulses instead — see Temporal Alignment).
-- **Social condition — shared pCampi/Doric recording**: on day_1, M5 and M7 point at the same
-  `.h5`/`.doric` files — confirm with the lab whether this reflects one shared photometry rig for
-  the pair or a labeling artifact in the share, and how `session_id`/subject assignment should
-  handle it.
-- **`interpolated_data` resampling grid is inconsistent across sessions**: checked all 12 sessions
-  in the share — `interpolated_campy_and_doric.mat`'s `interpolated_data` sample count matches
-  `n_clean_campy_rising_edges + 1` (the pCampi trigger-pulse grid, not the saved-video-frame grid)
-  in 10 of 12 sessions, but matches the saved frame count exactly in the other 2
-  (`Lone/day_1/M7`, `Social/day_1/M4`). Ask the lab which grid the MATLAB interpolation pipeline is
-  actually supposed to produce, and why 2 sessions differ — `ProcessedFiberPhotometryInterface`
-  currently assumes the frame grid unconditionally (nominal timestamps from the camera frame rate),
-  which is wrong for the 10 sessions on the trigger grid.
+
 - **SFARI grant number + CC-BY-4.0 license** — ask Nao Uchida directly.
 - **ORCIDs / contributors / publication DOI** — defer to manuscript stage.
 

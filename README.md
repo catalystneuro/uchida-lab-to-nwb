@@ -18,13 +18,13 @@ using [NeuroConv](https://github.com/catalystneuro/neuroconv).
 
 ```bash
 conda env create -f make_env.yml
-conda activate uchida_lab_to_nwb_env
+conda activate uchida-lab-to-nwb-env
 ```
 
 Or with pip:
 
 ```bash
-pip install -e ".[phillips_2025]"
+pip install -e .
 ```
 
 ## Usage
