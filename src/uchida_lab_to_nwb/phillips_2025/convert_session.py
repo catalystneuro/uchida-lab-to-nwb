@@ -66,9 +66,7 @@ _DORIC_INTERFACE_CONFIG = {
 # channel name (as read from interpolated_campy_and_doric.mat) and its fiber_photometry.yaml
 # metadata_key, mirroring _DORIC_INTERFACE_CONFIG above.
 _PROCESSED_INTERFACE_CONFIG = {
-    "InterpolatedFPControlSignal": dict(
-        stream_name="CAM1EXC1", metadata_key="fiber_photometry_interpolated_control"
-    ),
+    "InterpolatedFPControlSignal": dict(stream_name="CAM1EXC1", metadata_key="fiber_photometry_interpolated_control"),
     "InterpolatedFPDopamineSignal": dict(
         stream_name="CAM1EXC2",
         metadata_key="fiber_photometry_interpolated_dopamine_signal",
@@ -166,9 +164,7 @@ def session_to_nwb(
     videos_folder_path = session_dir_path / "videos"
 
     if nwbfile_path.exists() and not overwrite and not stub_test:
-        print(
-            f"Skipping {nwbfile_path} (already exists). Pass overwrite=True to overwrite."
-        )
+        print(f"Skipping {nwbfile_path} (already exists). Pass overwrite=True to overwrite.")
         return
 
     # ── Build source_data ────────────────────────────────────────────────────
@@ -246,7 +242,7 @@ def session_to_nwb(
     if dannce_mat.is_file() and videos_folder_path.is_dir():
 
         source_data["DANNCE"] = dict(
-            file_path=str(dannce_mat),
+            file_paths=str(dannce_mat),
             videos_folder_path=videos_folder_path,
             landmark_names=SDANNCE_LANDMARK_NAMES,
             subject_name=subject_id,
@@ -269,9 +265,7 @@ def session_to_nwb(
 
     # Layer 2: add timezone to session_start_time
     if metadata["NWBFile"].get("session_start_time"):
-        metadata["NWBFile"]["session_start_time"] = metadata["NWBFile"][
-            "session_start_time"
-        ].replace(tzinfo=_TIMEZONE)
+        metadata["NWBFile"]["session_start_time"] = metadata["NWBFile"]["session_start_time"].replace(tzinfo=_TIMEZONE)
 
     # Layer 3: lab-level YAML metadata
     yaml_path = Path(__file__).parent / "general_metadata.yaml"
@@ -363,21 +357,21 @@ def session_to_nwb(
     if subject_metadata:
         metadata["Subject"] = dict_deep_update(metadata["Subject"], subject_metadata)
 
-    # Inject skeleton edges and DANNCE labels into Behavior/Pose metadata. DANNCEInterface's own
-    # get_metadata() seeds Skeletons[pose_key] with nodes but an empty edges list (it has no
-    # anatomical knowledge), so DANNCEInterface.add_to_nwbfile() looks up the skeleton by
-    # pose_key (via PoseEstimations[pose_key]["skeleton_metadata_key"]) — the override below must
-    # use that same pose_key as the dict key (not the Skeleton's descriptive "name" field) for the
-    # deep-merge in add_to_nwbfile() to actually replace the empty default.
+    # Inject skeleton edges and DANNCE labels into the top-level Pose metadata. DANNCEInterface's
+    # own get_metadata() seeds Skeletons[pose_key] with nodes but an empty edges list (it has no
+    # anatomical knowledge), so DANNCEInterface.add_to_nwbfile() looks up the skeleton via
+    # MultiCameraPoseEstimations[pose_key]["skeleton_metadata_key"] (which defaults to pose_key)
+    # -- the overrides below must use that same pose_key as the dict key (not the descriptive
+    # "name" fields) for the deep-merge in add_to_nwbfile() to actually replace the defaults.
     if "DANNCE" in source_data:
         skeleton_name = f"Skeleton{pose_key}_{subject_id.capitalize()}"
-        behavior_pose = metadata.setdefault("Behavior", {}).setdefault("Pose", {})
-        behavior_pose.setdefault("Skeletons", {})[pose_key] = {
+        pose_metadata = metadata.setdefault("Pose", {})
+        pose_metadata.setdefault("Skeletons", {})[pose_key] = {
             "name": skeleton_name,
             "nodes": SDANNCE_LANDMARK_NAMES,
             "edges": SDANNCE_SKELETON_EDGES,
         }
-        behavior_pose.setdefault("PoseEstimations", {})[pose_key] = {
+        pose_metadata.setdefault("MultiCameraPoseEstimations", {})[pose_key] = {
             "name": pose_key,
             "source_software": "DANNCE",
             "scorer": "DANNCE",
@@ -388,9 +382,7 @@ def session_to_nwb(
     # (PyYAML parses YYYY-MM-DD as datetime.date; PyNWB Subject requires datetime)
     dob = metadata["Subject"].get("date_of_birth")
     if isinstance(dob, date) and not isinstance(dob, datetime):
-        metadata["Subject"]["date_of_birth"] = datetime.combine(dob, time.min).replace(
-            tzinfo=_TIMEZONE
-        )
+        metadata["Subject"]["date_of_birth"] = datetime.combine(dob, time.min).replace(tzinfo=_TIMEZONE)
 
     # ── Run conversion ───────────────────────────────────────────────────────
     converter.run_conversion(
