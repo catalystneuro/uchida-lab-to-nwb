@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Union
 from zoneinfo import ZoneInfo
 
+from neuroconv.tools.ontology import (
+    infer_species_ontology_metadata,
+    infer_strain_ontology_metadata,
+)
 from neuroconv.utils import dict_deep_update, load_dict_from_file
 
 from uchida_lab_to_nwb.phillips_2025.interfaces import PCampiSyncInterface
@@ -276,13 +280,6 @@ def session_to_nwb(
     fp_yaml_path = Path(__file__).parent / "fiber_photometry.yaml"
     metadata = dict_deep_update(metadata, load_dict_from_file(fp_yaml_path))
 
-    # HERD ontology annotation: Subject.species (Rattus norvegicus) and Subject.strain
-    # ("Long Evans" -> NeuroConv's "Long-Evans" alias) both resolve automatically via
-    # NeuroConv's curated tables. The FiberPhotometryTable's "location" values (NAc, TS) and the
-    # rat23 skeleton's node names don't, so map both explicitly (see constants.py docstrings).
-    metadata["BrainRegions"] = BRAIN_REGION_ONTOLOGY_MAPPING
-    metadata["Anatomy"] = get_anatomy_ontology_mapping()
-
     # Each DoricFiberPhotometryInterface seeds a placeholder "row0" FiberPhotometryTable row
     # and "indicator" FiberPhotometryIndicators entry by default (get_default_fiber_photometry_
     # metadata()); fiber_photometry.yaml defines the real rows/indicators under different keys
@@ -383,6 +380,19 @@ def session_to_nwb(
     dob = metadata["Subject"].get("date_of_birth")
     if isinstance(dob, date) and not isinstance(dob, datetime):
         metadata["Subject"]["date_of_birth"] = datetime.combine(dob, time.min).replace(tzinfo=_TIMEZONE)
+
+    # HERD ontology annotation. NeuroConv writes whatever metadata["ontology"] states as HERD
+    # references during run_conversion(), and nothing otherwise, so build the block here, after
+    # Subject is final. Subject.species (Rattus norvegicus -> NCBITaxon) and Subject.strain
+    # ("Long Evans" -> "Long-Evans" alias -> RRID) resolve via NeuroConv's curated tables. The
+    # FiberPhotometryTable "location" values (NAc, TS) and the rat23 skeleton's node names don't,
+    # so map both explicitly (see constants.py).
+    infer_species_ontology_metadata(metadata)
+    infer_strain_ontology_metadata(metadata)
+    ontology_metadata = metadata.setdefault("ontology", {})
+    ontology_metadata.setdefault("brain_regions", {}).update(BRAIN_REGION_ONTOLOGY_MAPPING)
+    if "DANNCE" in source_data:
+        ontology_metadata.setdefault("anatomy", {}).update(get_anatomy_ontology_mapping())
 
     # ── Run conversion ───────────────────────────────────────────────────────
     converter.run_conversion(

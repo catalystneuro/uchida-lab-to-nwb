@@ -1,9 +1,10 @@
 """Module-level constants for the sDANNCE rat23 skeleton and fiber photometry brain regions."""
 
 # fiber_photometry.yaml FiberPhotometryTable "location" string -> ontology term. NeuroConv's
-# built-in offline brain-region lookup doesn't recognize either of these for rat (no dedicated
-# Allen atlas -- falls back to a small UBERON vocabulary that doesn't include these specific
-# structures), so map them explicitly via metadata["BrainRegions"].
+# offline brain-region lookup doesn't recognize either of these for rat (no dedicated Allen
+# atlas -- falls back to a small UBERON vocabulary that doesn't include these specific
+# structures), so map them explicitly via metadata["ontology"]["brain_regions"]. HERD links a
+# term to a location through this exact string, so keys must match fiber_photometry.yaml.
 #
 # - "Nucleus Accumbens" (NAc, ROI01): UBERON:0001882, verified against the EBI Ontology Lookup
 #   Service (https://www.ebi.ac.uk/ols4), an exact, unambiguous match.
@@ -28,8 +29,8 @@ BRAIN_REGION_ONTOLOGY_MAPPING: dict[str, dict] = {
 # recognizes the base structure ("Shoulder", "Hand", ...) but not this skeleton's own
 # "<Structure><Left|Right>" naming convention, and UBERON doesn't distinguish laterality as
 # separate terms, so both sides of a bilateral landmark reuse the same UBERON reference. Names not
-# listed here either already resolve directly ("Snout") or via NeuroConv's built-in alias list
-# ("TailBase" -> "Tail"). "SpineFront"/"SpineMiddle"/"SpineLow" all map to the single generic
+# listed here are looked up as-is: they resolve directly ("Snout") or via NeuroConv's built-in
+# alias list ("TailBase" -> "Tail"). "SpineFront"/"SpineMiddle"/"SpineLow" all map to the single generic
 # "Spine" (vertebral column) term -- NeuroConv's vocabulary does not distinguish anteroposterior
 # spine subdivisions.
 _ANATOMY_BASE_STRUCTURE: dict[str, str] = {
@@ -58,9 +59,10 @@ _ANATOMY_BASE_STRUCTURE: dict[str, str] = {
 
 
 def get_anatomy_ontology_mapping() -> dict:
-    """Build the ``metadata["Anatomy"]`` HERD override mapping for the rat23 skeleton.
+    """Build the ``metadata["ontology"]["anatomy"]`` HERD term map for the rat23 skeleton.
 
-    See :data:`_ANATOMY_BASE_STRUCTURE` for why an explicit override is needed: NeuroConv's
+    Covers every node in :data:`SDANNCE_LANDMARK_NAMES`. See :data:`_ANATOMY_BASE_STRUCTURE` for
+    why the map is built here rather than with ``infer_anatomy_ontology_metadata()``: NeuroConv's
     curated anatomy table doesn't recognize this skeleton's ``"<Structure><Left|Right>"`` node
     naming, only the base structure name.
 
@@ -73,7 +75,8 @@ def get_anatomy_ontology_mapping() -> dict:
     from neuroconv.tools.ontology import get_anatomy_term
 
     mapping = {}
-    for landmark_name, base_name in _ANATOMY_BASE_STRUCTURE.items():
+    for landmark_name in SDANNCE_LANDMARK_NAMES:
+        base_name = _ANATOMY_BASE_STRUCTURE.get(landmark_name, landmark_name)
         term = get_anatomy_term(base_name)
         if term is None:
             continue
