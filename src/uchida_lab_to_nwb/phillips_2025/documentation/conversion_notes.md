@@ -224,6 +224,57 @@ Dependencies (`pyproject.toml`, `[phillips_2025]` extra): `neuroconv` (from the
   `PoseEstimations[pose_key]["skeleton_metadata_key"]`, and the metadata merge there is a
   key-for-key `DeepDict.deep_update`, not a name-based match.
 
+### Ontology annotation (HERD)
+
+Every file carries machine-readable ontology references under `/general/external_resources`,
+stored as HDMF HERD (External Resources Data). They are written by NeuroConv's ontology tools
+(`neuroconv.tools.ontology`), which work in two separate steps:
+
+1. **Inference.** The `infer_*_ontology_metadata()` functions match a free-text value to an
+   ontology term and store it in `metadata["ontology"]`.
+2. **Annotation.** `run_conversion()` writes whatever `metadata["ontology"]` contains into the file
+   as HERD references. It does not look anything up itself, so a value with no entry in that block
+   is not annotated.
+
+`session_to_nwb()` builds the `metadata["ontology"]` block just before `run_conversion()`, after
+the subject metadata has been merged in. Each map is keyed by the exact string written in the file,
+because HERD links a term to an object through that string.
+
+| Map | NWB field(s) | Value in file | Term | Source |
+|---|---|---|---|---|
+| `species` | `Subject.species` | `Rattus norvegicus` | NCBITaxon:10116 | `infer_species_ontology_metadata()` |
+| `strain` | `Subject.strain` | `Long Evans` | RRID:RGD_2308852 (Long-Evans) | `infer_strain_ontology_metadata()` |
+| `brain_regions` | `FiberPhotometryTable.location` | `Nucleus Accumbens` | UBERON:0001882 (nucleus accumbens) | `BRAIN_REGION_ONTOLOGY_MAPPING` |
+| `brain_regions` | `FiberPhotometryTable.location` | `Tail of Striatum` | UBERON:0002435 (striatum) | `BRAIN_REGION_ONTOLOGY_MAPPING` |
+| `anatomy` | DANNCE `Skeleton.nodes` | 23 rat23 landmarks | UBERON (see below) | `get_anatomy_ontology_mapping()` |
+
+- **Species and strain** are matched against NeuroConv's curated lookup tables. The lab's strain
+  spelling `"Long Evans"` matches as an informal spelling of `Long-Evans`, so NeuroConv emits a
+  non-blocking `UserWarning` suggesting the canonical name. The file keeps the lab's spelling.
+- **Brain regions** are mapped by hand in `utils/constants.py`. Rat has no dedicated Allen atlas,
+  and NeuroConv's rat fallback list of UBERON terms covers neither structure.
+  - Nucleus Accumbens (NAc, ROI01): exact UBERON match, checked against the
+    [EBI Ontology Lookup Service](https://www.ebi.ac.uk/ols4).
+  - Tail of Striatum (TS, ROI02): a subregion defined by its dopamine circuitry (Menegas et al.).
+    Neither UBERON nor the Allen Mouse Brain Atlas has a term for it (checked 2026-08-12), so it
+    is mapped to the broader "striatum" term. This approximation was accepted until a more specific
+    term exists.
+- **Skeleton anatomy** is also mapped by hand, by `get_anatomy_ontology_mapping()` in
+  `utils/constants.py`. NeuroConv's anatomy table knows the base structures (`Shoulder`, `Hand`)
+  but not this skeleton's `<Structure><Left|Right>` node names. Each landmark is reduced to its
+  base structure first (`_ANATOMY_BASE_STRUCTURE`) and then looked up with `get_anatomy_term()`.
+  All 23 nodes resolve:
+  - UBERON has no separate left/right terms, so both sides of a paired landmark share one term (for
+    example `EarLeft`/`EarRight` → UBERON:0001691, external ear).
+  - `SpineFront`/`SpineMiddle`/`SpineLow` all map to the vertebral column (UBERON:0001130).
+    NeuroConv's list does not divide the spine front to back.
+  - `Snout` (UBERON:0006333) matches directly, and `TailBase` matches `Tail` (UBERON:0002415)
+    through a NeuroConv alias.
+  - The anatomy map is added only when the session has DANNCE data.
+
+To change or add a term, edit the `metadata["ontology"]` maps. NeuroConv never overwrites a term
+that is already there.
+
 ## Temporal Alignment
 
 **Status: pCampi ↔ Doric offset alignment implemented (single scalar offset, from one edge pair).**
@@ -315,4 +366,4 @@ Items that need input from the lab (Hannah Phillips) before they can be resolved
 Internal code/repo work, not blocked on the lab. All resolved as of 2026-08-10:
 
 - Add **HED** table
-- Add **HERD** table
+- Add **HERD** table (see Metadata → Ontology annotation)
