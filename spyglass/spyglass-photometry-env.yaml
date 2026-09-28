@@ -1,0 +1,29 @@
+# Conda environment for the DRAFT fiber-photometry ingestion schema
+# (LorenFrankLab/spyglass PR #1637, branch feature/fiber-photometry-ingestion ->
+# common_photometry). Separate from the existing `spyglass` (PyPI spyglass-neuro 0.6.0)
+# and `spyglass-eeg` WSL envs, which stay untouched.
+#
+#   conda env create -f spyglass-photometry-env.yaml   (inside WSL, Miniforge at /opt/miniforge3)
+#   conda activate spyglass-photometry
+#
+# ndx-fiber-photometry / ndx-ophys-devices / ndx-pose must be importable so pynwb can
+# load the extension namespaces cached in the published files (DANDI:001935 uses
+# ndx-fiber-photometry 0.2.3, ndx-ophys-devices 0.3.1, ndx-pose 0.4.0).
+
+name: spyglass-photometry
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - hdf5
+  - git
+  - pip:
+      - "git+https://github.com/LorenFrankLab/spyglass.git@feature/fiber-photometry-ingestion"
+      - ndx-fiber-photometry==0.2.3
+      - ndx-ophys-devices
+      - ndx-pose
+      - ndx-franklab-novela
+      - pyyaml
+      - jupyter
+      - matplotlib

@@ -15,6 +15,9 @@ nwb_stub/
 .env
 *.log
 
+# Spyglass ingestion: local DB credentials + paths
+spyglass/dj_local_conf.json
+
 # OS
 .DS_Store
 Thumbs.db
