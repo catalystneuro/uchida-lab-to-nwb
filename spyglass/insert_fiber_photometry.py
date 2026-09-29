@@ -63,10 +63,6 @@ from spyglass.data_import.insert_sessions import copy_nwb_link_raw_ephys  # noqa
 from spyglass.settings import raw_dir  # noqa: E402
 from spyglass.utils.nwb_helper_fn import get_nwb_copy_filename  # noqa: E402
 
-from ingest_shims import install_hemisphere_shim  # noqa: E402
-
-install_hemisphere_shim()
-
 # Excluded on purpose (never imported, never called -- not caught-and-ignored):
 # VideoFile, ImportedPose, ImportedLFP, VirusInjection, OpticalFiberImplant,
 # OptogeneticProtocol, PositionSource, StateScriptFile, TaskEpoch, SampleCount,

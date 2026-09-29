@@ -1,14 +1,22 @@
 # Conda environment for the DRAFT fiber-photometry ingestion schema
 # (LorenFrankLab/spyglass PR #1637, branch feature/fiber-photometry-ingestion ->
-# common_photometry). Separate from the existing `spyglass` (PyPI spyglass-neuro 0.6.0)
-# and `spyglass-eeg` WSL envs, which stay untouched.
+# common_photometry), pinned to the commit this pipeline was tested against.
 #
-#   conda env create -f spyglass-photometry-env.yaml   (inside WSL, Miniforge at /opt/miniforge3)
-#   conda activate spyglass-photometry
+# Do not create this env with `conda env create` alone -- use bootstrap_wsl.sh, which
+# creates it from this file and then applies three pins that pip cannot resolve together
+# with the packages below, because they conflict with requirements Spyglass declares:
 #
-# ndx-fiber-photometry / ndx-ophys-devices / ndx-pose must be importable so pynwb can
-# load the extension namespaces cached in the published files (DANDI:001935 uses
-# ndx-fiber-photometry 0.2.3, ndx-ophys-devices 0.3.1, ndx-pose 0.4.0).
+#   1. ndx-pose @ rly/ndx-pose b1f6980, with pynwb==4.2.0 and hdmf==6.2.0
+#      The converted NWB files contain ndx-pose types (e.g. CalibratedCamera) from this
+#      unreleased ndx-pose commit; without it pynwb cannot open them. It needs hdmf>=6.1,
+#      which conflicts with ndx-franklab-novela's `hdmf<5` (a Spyglass dependency). pip
+#      reports the conflict, but Spyglass imports and ingests fine with it.
+#   2. kachery-cloud, then pubnub<6.4
+#      Only needed by the full insert_sessions() path (dry_run_insertion.py), which
+#      imports Spyglass's spike-sorting modules. kachery-cloud wants pubnub>=7.2, Spyglass
+#      wants pubnub<6.4; re-pinning pubnub afterwards keeps both importable.
+#
+#   wsl -d Ubuntu-24.04 -- bash /mnt/c/Users/algab/CatalystNeuro/uchida-lab-to-nwb/spyglass/bootstrap_wsl.sh
 
 name: spyglass-photometry
 channels:
@@ -19,10 +27,9 @@ dependencies:
   - hdf5
   - git
   - pip:
-      - "git+https://github.com/LorenFrankLab/spyglass.git@feature/fiber-photometry-ingestion"
+      - "git+https://github.com/LorenFrankLab/spyglass.git@7a2b9a12b224fd7aa3a7f1e002cb0f5f8210d984"
       - ndx-fiber-photometry==0.2.3
       - ndx-ophys-devices
-      - ndx-pose
       - ndx-franklab-novela
       - pyyaml
       - jupyter

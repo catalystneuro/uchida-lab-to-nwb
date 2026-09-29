@@ -32,12 +32,6 @@ from spyglass.common.common_usage import InsertError  # noqa: E402
 from spyglass.settings import raw_dir  # noqa: E402
 from spyglass.utils.nwb_helper_fn import get_nwb_copy_filename  # noqa: E402
 
-from ingest_shims import install_hemisphere_shim  # noqa: E402
-
-# Gap found by the first dry run (see ingest_shims.py): hemisphere='unknown' is rejected by
-# the enum('left','right') column. Comment this out to reproduce the raw failure.
-install_hemisphere_shim()
-
 PHOTOMETRY_DEVICE_TABLES = (
     sgc.Indicator,
     sgc.ExcitationSource,
