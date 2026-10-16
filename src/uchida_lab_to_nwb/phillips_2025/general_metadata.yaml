@@ -19,3 +19,46 @@ NWBFile:
     - autism
     - SFARI ARC
   # related_publications: []  # TODO: add DOI when available
+
+# External resources (HERD). NeuroConv writes every term stated here into the file under
+# /general/external_resources during run_conversion. Each map is keyed by the exact value it
+# annotates; terms for values a session does not have are skipped. IDs checked against the EBI
+# Ontology Lookup Service (UBERON, NCBITaxon) and the SciCrunch resolver (RRID) on 2026-10-16.
+ExternalResources:
+  species:
+    Rattus norvegicus: { id: "NCBITaxon:10116", uri: "http://purl.obolibrary.org/obo/NCBITaxon_10116" }
+  # Subject.strain as written from the subject sheet. Long-Evans term (Crl:LE, Charles River), the
+  # same one NeuroConv's strain table gives; the supplier is not recorded in the subject sheet.
+  strain:
+    Long Evans: { id: "RRID:RGD_2308852", uri: "https://scicrunch.org/resolver/RRID:RGD_2308852" }
+  # FiberPhotometryTable locations; keys must match the `location` strings in fiber_photometry.yaml.
+  # Tail of Striatum has no UBERON or Allen term (checked 2026-08-12) and uses the broader striatum.
+  brain_regions:
+    Nucleus Accumbens: { id: "UBERON:0001882", uri: "http://purl.obolibrary.org/obo/UBERON_0001882" }
+    Tail of Striatum: { id: "UBERON:0002435", uri: "http://purl.obolibrary.org/obo/UBERON_0002435" }  # striatum
+  # rat23 skeleton nodes. UBERON has no left/right terms, so both sides share one term (YAML
+  # anchors), and the three spine points share the vertebral column term.
+  anatomy:
+    Snout: { id: "UBERON:0006333", uri: "http://purl.obolibrary.org/obo/UBERON_0006333" }  # snout
+    EarLeft: &ear { id: "UBERON:0001691", uri: "http://purl.obolibrary.org/obo/UBERON_0001691" }  # external ear
+    EarRight: *ear
+    SpineFront: &spine { id: "UBERON:0001130", uri: "http://purl.obolibrary.org/obo/UBERON_0001130" }  # vertebral column
+    SpineMiddle: *spine
+    SpineLow: *spine
+    TailBase: { id: "UBERON:0002415", uri: "http://purl.obolibrary.org/obo/UBERON_0002415" }  # tail (UBERON has no tail-base term)
+    ShoulderLeft: &shoulder { id: "UBERON:0001467", uri: "http://purl.obolibrary.org/obo/UBERON_0001467" }  # shoulder
+    ShoulderRight: *shoulder
+    ElbowLeft: &elbow { id: "UBERON:0001461", uri: "http://purl.obolibrary.org/obo/UBERON_0001461" }  # elbow
+    ElbowRight: *elbow
+    WristLeft: &wrist { id: "UBERON:0004452", uri: "http://purl.obolibrary.org/obo/UBERON_0004452" }  # carpal region
+    WristRight: *wrist
+    HandLeft: &hand { id: "UBERON:0002398", uri: "http://purl.obolibrary.org/obo/UBERON_0002398" }  # manus (forepaw)
+    HandRight: *hand
+    HipLeft: &hip { id: "UBERON:0001464", uri: "http://purl.obolibrary.org/obo/UBERON_0001464" }  # hip
+    HipRight: *hip
+    KneeLeft: &knee { id: "UBERON:0001465", uri: "http://purl.obolibrary.org/obo/UBERON_0001465" }  # knee
+    KneeRight: *knee
+    AnkleLeft: &ankle { id: "UBERON:0004454", uri: "http://purl.obolibrary.org/obo/UBERON_0004454" }  # tarsal region
+    AnkleRight: *ankle
+    FootLeft: &foot { id: "UBERON:0002387", uri: "http://purl.obolibrary.org/obo/UBERON_0002387" }  # pes (hindpaw)
+    FootRight: *foot
