@@ -362,12 +362,16 @@ def session_to_nwb(
             "nodes": SDANNCE_LANDMARK_NAMES,
             "edges": SDANNCE_SKELETON_EDGES,
         }
-        pose_metadata.setdefault("MultiCameraPoseEstimations", {})[pose_key] = {
-            "name": pose_key,
-            "source_software": "DANNCE",
-            "scorer": "DANNCE",
-            "description": "3D keypoint coordinates estimated using DANNCE.",
-        }
+        # Update the container entry instead of replacing it: the interface's default entry also
+        # holds "skeleton_metadata_key", and without it no Skeleton is written.
+        pose_metadata.setdefault("MultiCameraPoseEstimations", {}).setdefault(pose_key, {}).update(
+            {
+                "name": pose_key,
+                "source_software": "DANNCE",
+                "scorer": "DANNCE",
+                "description": "3D keypoint coordinates estimated using DANNCE.",
+            }
+        )
 
     # Promote date_of_birth to datetime with timezone if loaded as a bare date
     # (PyYAML parses YYYY-MM-DD as datetime.date; PyNWB Subject requires datetime)

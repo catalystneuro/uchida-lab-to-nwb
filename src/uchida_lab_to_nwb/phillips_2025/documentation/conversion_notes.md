@@ -224,6 +224,41 @@ Dependencies (`pyproject.toml`, `[phillips_2025]` extra): `neuroconv` (from the
   `PoseEstimations[pose_key]["skeleton_metadata_key"]`, and the metadata merge there is a
   key-for-key `DeepDict.deep_update`, not a name-based match.
 
+### Ontology annotation (HERD)
+
+Every file carries machine-readable ontology references under `/general/external_resources`,
+stored as HDMF HERD (External Resources Data). NeuroConv (`neuroconv.tools.external_resources`)
+writes the terms stated in `metadata["ExternalResources"]` during `run_conversion()`. All of them are
+stated in `general_metadata.yaml`, each map keyed by the exact string written in the file, because
+HERD links a term to an object through that string. A term for a value the session does not have
+(for example the skeleton nodes in a session without DANNCE data) is skipped.
+
+| Map | NWB field(s) | Value in file | Term |
+|---|---|---|---|
+| `species` | `Subject.species` | `Rattus norvegicus` | NCBITaxon:10116 |
+| `strain` | `Subject.strain` | `Long Evans` | RRID:RGD_2308852 (Crl:LE) |
+| `brain_regions` | `FiberPhotometryTable.location` | `Nucleus Accumbens` | UBERON:0001882 (nucleus accumbens) |
+| `brain_regions` | `FiberPhotometryTable.location` | `Tail of Striatum` | UBERON:0002435 (striatum) |
+| `anatomy` | DANNCE `Skeleton.nodes` | 23 rat23 landmarks | UBERON (see below) |
+
+- **Strain**: the subject sheet writes `Long Evans` and records no supplier. The term is the
+  Long-Evans RRID NeuroConv's strain table uses, which is Charles River's Crl:LE.
+- **Brain regions**: rat has no dedicated Allen atlas, and NeuroConv's rat fallback list of UBERON
+  terms covers neither structure.
+  - Nucleus Accumbens (NAc, ROI01): exact UBERON match, checked against the
+    [EBI Ontology Lookup Service](https://www.ebi.ac.uk/ols4).
+  - Tail of Striatum (TS, ROI02): a subregion defined by its dopamine circuitry (Menegas et al.).
+    Neither UBERON nor the Allen Mouse Brain Atlas has a term for it (checked 2026-08-12), so it
+    is mapped to the broader "striatum" term. This approximation was accepted until a more specific
+    term exists.
+- **Skeleton anatomy**: all 23 rat23 nodes are mapped.
+  - UBERON has no separate left/right terms, so both sides of a paired landmark share one term (for
+    example `EarLeft`/`EarRight` -> UBERON:0001691, external ear), written once with a YAML anchor.
+  - `SpineFront`/`SpineMiddle`/`SpineLow` all map to the vertebral column (UBERON:0001130).
+  - `TailBase` maps to the tail (UBERON:0002415), because UBERON has no tail-base term.
+
+To change or add a term, edit the `ExternalResources` block in `general_metadata.yaml`.
+
 ## Temporal Alignment
 
 **Status: pCampi ↔ Doric offset alignment implemented (single scalar offset, from one edge pair).**
@@ -315,4 +350,4 @@ Items that need input from the lab (Hannah Phillips) before they can be resolved
 Internal code/repo work, not blocked on the lab. All resolved as of 2026-08-10:
 
 - Add **HED** table
-- Add **HERD** table
+- Add **HERD** table (see Metadata → Ontology annotation)
