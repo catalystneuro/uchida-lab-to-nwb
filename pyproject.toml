@@ -22,10 +22,9 @@ dependencies = [
     # External-resource (HERD) annotation of Skeleton nodes is on neuroconv add-anatomy-herd-ontology
     # (catalystneuro/neuroconv#1900), which also has the DANNCEInterface from main.
     "neuroconv[dannce] @ git+https://github.com/catalystneuro/neuroconv.git@add-anatomy-herd-ontology",
-    # "ndx-pose>=0.4.0", # release TBD
-    "ndx-pose @ git+https://github.com/rly/ndx-pose.git@main",
-    "ndx-fiber-photometry",
-    "ndx-ophys-devices>=0.3.1",
+    "ndx-pose==0.4.0",
+    "ndx-fiber-photometry==0.2.4",
+    "ndx-ophys-devices==0.3.1",
     "openpyxl",
     "python-dateutil",
     "opencv-python-headless",
