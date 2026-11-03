@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 from neuroconv import NWBConverter
 from neuroconv.converters import DANNCEConverter
-from neuroconv.datainterfaces import DoricFiberPhotometryInterface
+from neuroconv.datainterfaces import DANNCEInterface, DoricFiberPhotometryInterface
 from neuroconv.tools.signal_processing import (
     get_falling_frames_from_ttl,
     get_rising_frames_from_ttl,
@@ -111,6 +111,9 @@ class Phillips2025NWBConverter(NWBConverter):
     - DANNCE: 3D pose estimation (save_data_AVG0.mat) combined with the 6-camera behavioral
       video (.mp4 per camera, external link) via ``DANNCEConverter``, which links each camera's
       source video and calibrated Device (from calibration/calibration.json) automatically.
+    - DANNCEPartner: social sessions only. The partner rat's 3D pose (sDANNCE animal index 1; the
+      implanted subject is index 0), as a second ``DANNCEInterface`` that reuses the camera Devices
+      and videos written by ``DANNCE``, so it must come after ``DANNCE``.
 
     Temporal alignment: ``campy_trigger`` (pCampi/h5) and ``DigitalCh1`` (Doric/.doric, "DIO BNC |
     Ch.1") carry the same physical TTL pulse train on two independent 1 kHz clocks (see
@@ -158,6 +161,7 @@ class Phillips2025NWBConverter(NWBConverter):
     # them with plain Devices. Remove this ordering requirement once the upstream bug is fixed.
     data_interface_classes = dict(
         DANNCE=DANNCEConverter,
+        DANNCEPartner=DANNCEInterface,
         DoricControl=DoricFiberPhotometryInterface,
         DoricDopamineSignal=DoricFiberPhotometryInterface,
         InterpolatedFPControlSignal=ProcessedFiberPhotometryInterface,
@@ -214,3 +218,7 @@ class Phillips2025NWBConverter(NWBConverter):
             first_real_rising_edge = drop_spurious_leading_edges(pcampi_rising_edge_times)[0]
             for sub_interface in dannce.data_interface_objects.values():
                 sub_interface.set_aligned_starting_time(first_real_rising_edge)
+            # The partner's pose comes from the same sDANNCE file, so it shares the subject's clock.
+            dannce_partner = self.data_interface_objects.get("DANNCEPartner")
+            if dannce_partner is not None:
+                dannce_partner.set_aligned_starting_time(first_real_rising_edge)
