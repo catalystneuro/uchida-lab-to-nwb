@@ -237,9 +237,9 @@ HERD links a term to an object through that string. A term for a value the sessi
 |---|---|---|---|
 | `species` | `Subject.species` | `Rattus norvegicus` | NCBITaxon:10116 |
 | `strain` | `Subject.strain` | `Long Evans` | RRID:RGD_2308852 (Crl:LE) |
-| `brain_regions` | `FiberPhotometryTable.location` | `Nucleus Accumbens` | UBERON:0001882 (nucleus accumbens) |
-| `brain_regions` | `FiberPhotometryTable.location` | `Tail of Striatum` | UBERON:0002435 (striatum) |
-| `anatomy` | DANNCE `Skeleton.nodes` | 23 rat23 landmarks | UBERON (see below) |
+| `anatomical_structures` | `FiberPhotometryTable.location` | `Nucleus Accumbens` | UBERON:0001882 (nucleus accumbens) |
+| `anatomical_structures` | `FiberPhotometryTable.location` | `Tail of Striatum` | UBERON:0002435 (striatum) |
+| `anatomical_structures` | DANNCE `Skeleton.nodes` | 23 rat23 landmarks | UBERON (see below) |
 
 - **Strain**: the subject sheet writes `Long Evans` and records no supplier. The term is the
   Long-Evans RRID NeuroConv's strain table uses, which is Charles River's Crl:LE.

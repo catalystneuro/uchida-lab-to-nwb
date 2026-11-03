@@ -235,7 +235,8 @@ def session_to_nwb(
     # DANNCE pose estimation + 6-camera video (combined via DANNCEConverter). No
     # frametimes_file_path is passed; instead DANNCE pose timestamps are computed
     # from sampleID / sampling_rate, and each camera's video keeps its own native
-    # per-frame timestamps.
+    # per-frame timestamps. There is no sync table, so neuroconv needs the camera
+    # frame rate passed explicitly as sampling_rate.
     pose_key = "PoseEstimationDANNCE"
     if dannce_mat.is_file() and videos_folder_path.is_dir():
 
@@ -246,6 +247,7 @@ def session_to_nwb(
             subject_name=subject_id,
             metadata_key=pose_key,
             animal_index=0,
+            sampling_rate=_read_camera_frame_rate(videos_folder_path),
         )
         calibration_path = session_dir_path / "calibration"
         if calibration_path.is_dir():

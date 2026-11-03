@@ -31,14 +31,14 @@ ExternalResources:
   # same one NeuroConv's strain table gives; the supplier is not recorded in the subject sheet.
   strain:
     Long Evans: { id: "RRID:RGD_2308852", uri: "https://scicrunch.org/resolver/RRID:RGD_2308852" }
-  # FiberPhotometryTable locations; keys must match the `location` strings in fiber_photometry.yaml.
-  # Tail of Striatum has no UBERON or Allen term (checked 2026-08-12) and uses the broader striatum.
-  brain_regions:
+  # FiberPhotometryTable locations and rat23 skeleton node names share one map.
+  anatomical_structures:
+    # Keys must match the `location` strings in fiber_photometry.yaml. Tail of Striatum has no
+    # UBERON or Allen term (checked 2026-08-12) and uses the broader striatum.
     Nucleus Accumbens: { id: "UBERON:0001882", uri: "http://purl.obolibrary.org/obo/UBERON_0001882" }
     Tail of Striatum: { id: "UBERON:0002435", uri: "http://purl.obolibrary.org/obo/UBERON_0002435" }  # striatum
-  # rat23 skeleton nodes. UBERON has no left/right terms, so both sides share one term (YAML
-  # anchors), and the three spine points share the vertebral column term.
-  anatomy:
+    # rat23 skeleton nodes. UBERON has no left/right terms, so both sides share one term (YAML
+    # anchors), and the three spine points share the vertebral column term.
     Snout: { id: "UBERON:0006333", uri: "http://purl.obolibrary.org/obo/UBERON_0006333" }  # snout
     EarLeft: &ear { id: "UBERON:0001691", uri: "http://purl.obolibrary.org/obo/UBERON_0001691" }  # external ear
     EarRight: *ear
