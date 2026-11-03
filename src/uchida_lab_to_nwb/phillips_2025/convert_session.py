@@ -374,6 +374,25 @@ def session_to_nwb(
                 "description": "3D keypoint coordinates estimated using DANNCE.",
             }
         )
+        # neuroconv leaves the cameras, their shared DeviceModel, and the per-camera PoseEstimation
+        # children without a description (NWB Inspector check_description).
+        container_metadata = pose_metadata["MultiCameraPoseEstimations"][pose_key]
+        for camera_pose_key in container_metadata["pose_estimation_metadata_keys"]:
+            camera_pose_metadata = pose_metadata["PoseEstimations"][camera_pose_key]
+            camera_name = camera_pose_metadata["device_metadata_key"]
+            camera_pose_metadata["description"] = (
+                f"{camera_name} view of the DANNCE 3D pose estimation. Links the camera and its source video; "
+                "DANNCE writes no per-camera 2D keypoints."
+            )
+            camera_metadata = metadata["Devices"][camera_name]
+            camera_metadata["description"] = f"{camera_name} of the 6-camera behavior video rig, acquired with campy."
+            device_model_metadata_key = camera_metadata.get("device_model_metadata_key")
+            if device_model_metadata_key is not None:
+                device_model_metadata = metadata["DeviceModels"][device_model_metadata_key]
+                device_model_metadata["description"] = (
+                    f"{device_model_metadata['manufacturer'].capitalize()} {device_model_metadata['name']} camera "
+                    "used for the 6-camera behavior video."
+                )
 
     # Promote date_of_birth to datetime with timezone if loaded as a bare date
     # (PyYAML parses YYYY-MM-DD as datetime.date; PyNWB Subject requires datetime)
