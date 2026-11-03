@@ -169,11 +169,7 @@ class ProcessedFiberPhotometryInterface(BaseFiberPhotometryInterface):
             return array[: min(stub_samples, len(array))] if stub_test else array
 
         add_fiber_photometry_devices(nwbfile=nwbfile, metadata=metadata)
-        fiber_photometry_table = add_fiber_photometry_lab_metadata(
-            nwbfile=nwbfile,
-            fiber_photometry_metadata=fiber_photometry_metadata,
-            devices_metadata=metadata["Devices"],
-        )
+        fiber_photometry_table = add_fiber_photometry_lab_metadata(nwbfile=nwbfile, metadata=metadata)
 
         data = stub(self._read_response_data())
         timestamps = stub(self.get_timestamps())

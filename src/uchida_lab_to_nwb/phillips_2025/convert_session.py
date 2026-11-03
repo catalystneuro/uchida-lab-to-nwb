@@ -235,7 +235,8 @@ def session_to_nwb(
     # DANNCE pose estimation + 6-camera video (combined via DANNCEConverter). No
     # frametimes_file_path is passed; instead DANNCE pose timestamps are computed
     # from sampleID / sampling_rate, and each camera's video keeps its own native
-    # per-frame timestamps.
+    # per-frame timestamps. There is no sync table, so neuroconv needs the camera
+    # frame rate passed explicitly as sampling_rate.
     pose_key = "PoseEstimationDANNCE"
     if dannce_mat.is_file() and videos_folder_path.is_dir():
 
@@ -246,6 +247,7 @@ def session_to_nwb(
             subject_name=subject_id,
             metadata_key=pose_key,
             animal_index=0,
+            sampling_rate=_read_camera_frame_rate(videos_folder_path),
         )
         calibration_path = session_dir_path / "calibration"
         if calibration_path.is_dir():
@@ -362,12 +364,35 @@ def session_to_nwb(
             "nodes": SDANNCE_LANDMARK_NAMES,
             "edges": SDANNCE_SKELETON_EDGES,
         }
-        pose_metadata.setdefault("MultiCameraPoseEstimations", {})[pose_key] = {
-            "name": pose_key,
-            "source_software": "DANNCE",
-            "scorer": "DANNCE",
-            "description": "3D keypoint coordinates estimated using DANNCE.",
-        }
+        # Update the container entry instead of replacing it: the interface's default entry also
+        # holds "skeleton_metadata_key", and without it no Skeleton is written.
+        pose_metadata.setdefault("MultiCameraPoseEstimations", {}).setdefault(pose_key, {}).update(
+            {
+                "name": pose_key,
+                "source_software": "DANNCE",
+                "scorer": "DANNCE",
+                "description": "3D keypoint coordinates estimated using DANNCE.",
+            }
+        )
+        # neuroconv leaves the cameras, their shared DeviceModel, and the per-camera PoseEstimation
+        # children without a description (NWB Inspector check_description).
+        container_metadata = pose_metadata["MultiCameraPoseEstimations"][pose_key]
+        for camera_pose_key in container_metadata["pose_estimation_metadata_keys"]:
+            camera_pose_metadata = pose_metadata["PoseEstimations"][camera_pose_key]
+            camera_name = camera_pose_metadata["device_metadata_key"]
+            camera_pose_metadata["description"] = (
+                f"{camera_name} view of the DANNCE 3D pose estimation. Links the camera and its source video; "
+                "DANNCE writes no per-camera 2D keypoints."
+            )
+            camera_metadata = metadata["Devices"][camera_name]
+            camera_metadata["description"] = f"{camera_name} of the 6-camera behavior video rig, acquired with campy."
+            device_model_metadata_key = camera_metadata.get("device_model_metadata_key")
+            if device_model_metadata_key is not None:
+                device_model_metadata = metadata["DeviceModels"][device_model_metadata_key]
+                device_model_metadata["description"] = (
+                    f"{device_model_metadata['manufacturer'].capitalize()} {device_model_metadata['name']} camera "
+                    "used for the 6-camera behavior video."
+                )
 
     # Promote date_of_birth to datetime with timezone if loaded as a bare date
     # (PyYAML parses YYYY-MM-DD as datetime.date; PyNWB Subject requires datetime)
