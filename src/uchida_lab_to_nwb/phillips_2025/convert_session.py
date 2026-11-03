@@ -237,7 +237,10 @@ def session_to_nwb(
     # from sampleID / sampling_rate, and each camera's video keeps its own native
     # per-frame timestamps. There is no sync table, so neuroconv needs the camera
     # frame rate passed explicitly as sampling_rate.
+    # In social sessions the sDANNCE file holds both rats: index 0 is the implanted subject and
+    # index 1 the partner. The partner is treated as an external stimulus: its pose is written, but it gets no Subject.
     pose_key = "PoseEstimationDANNCE"
+    partner_pose_key = "PoseEstimationDANNCEPartner"
     if dannce_mat.is_file() and videos_folder_path.is_dir():
 
         source_data["DANNCE"] = dict(
@@ -255,6 +258,21 @@ def session_to_nwb(
         # DANNCEConverter writes video in full regardless of stub_test; only the DANNCE
         # pose predictions are truncated for quick smoke testing.
         conversion_options["DANNCE"] = dict(stub_test=stub_test)
+
+        if condition == "social":
+            # Same cameras as DANNCEConverter, which takes them from the videos folder.
+            camera_names = sorted(path.name for path in videos_folder_path.iterdir() if path.is_dir())
+            source_data["DANNCEPartner"] = dict(
+                file_paths=str(dannce_mat),
+                landmark_names=SDANNCE_LANDMARK_NAMES,
+                metadata_key=partner_pose_key,
+                camera_names=camera_names,
+                animal_index=1,
+                sampling_rate=source_data["DANNCE"]["sampling_rate"],
+            )
+            if calibration_path.is_dir():
+                source_data["DANNCEPartner"]["calibration_path"] = str(calibration_path)
+            conversion_options["DANNCEPartner"] = dict(stub_test=stub_test)
 
     # ── Instantiate converter ────────────────────────────────────────────────
     converter = Phillips2025NWBConverter(source_data=source_data, verbose=verbose)
@@ -374,10 +392,51 @@ def session_to_nwb(
                 "description": "3D keypoint coordinates estimated using DANNCE.",
             }
         )
+        container_keys = [pose_key]
+        if "DANNCEPartner" in source_data:
+            # neuroconv links a Skeleton to the file's Subject unless its "subject" names someone else,
+            # so naming the partner keeps its Skeleton unlinked; the partner is not a Subject of this file.
+            pose_metadata["Skeletons"][partner_pose_key] = {
+                "name": f"Skeleton{partner_pose_key}",
+                "nodes": SDANNCE_LANDMARK_NAMES,
+                "edges": SDANNCE_SKELETON_EDGES,
+                "subject": "partner",
+            }
+            pose_metadata["MultiCameraPoseEstimations"][partner_pose_key].update(
+                {
+                    "name": partner_pose_key,
+                    "source_software": "DANNCE",
+                    "scorer": "DANNCE",
+                    "description": (
+                        "3D keypoint coordinates of the partner rat, estimated using DANNCE. The partner shares the "
+                        "arena with the subject in the social condition and has no fiber photometry."
+                    ),
+                }
+            )
+            # Link the partner's per-camera entries to the videos DANNCEConverter writes for the subject.
+            camera_to_source_video_key = {
+                pose_metadata["PoseEstimations"][key]["device_metadata_key"]: pose_metadata["PoseEstimations"][key][
+                    "source_video_metadata_key"
+                ]
+                for key in pose_metadata["MultiCameraPoseEstimations"][pose_key]["pose_estimation_metadata_keys"]
+            }
+            for key in pose_metadata["MultiCameraPoseEstimations"][partner_pose_key]["pose_estimation_metadata_keys"]:
+                camera_pose_metadata = pose_metadata["PoseEstimations"][key]
+                camera_pose_metadata["source_video_metadata_key"] = camera_to_source_video_key[
+                    camera_pose_metadata["device_metadata_key"]
+                ]
+            container_keys.append(partner_pose_key)
+
         # neuroconv leaves the cameras, their shared DeviceModel, and the per-camera PoseEstimation
         # children without a description (NWB Inspector check_description).
-        container_metadata = pose_metadata["MultiCameraPoseEstimations"][pose_key]
-        for camera_pose_key in container_metadata["pose_estimation_metadata_keys"]:
+        camera_pose_keys = [
+            camera_pose_key
+            for container_key in container_keys
+            for camera_pose_key in pose_metadata["MultiCameraPoseEstimations"][container_key][
+                "pose_estimation_metadata_keys"
+            ]
+        ]
+        for camera_pose_key in camera_pose_keys:
             camera_pose_metadata = pose_metadata["PoseEstimations"][camera_pose_key]
             camera_name = camera_pose_metadata["device_metadata_key"]
             camera_pose_metadata["description"] = (
