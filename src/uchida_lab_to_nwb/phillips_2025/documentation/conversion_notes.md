@@ -237,6 +237,8 @@ HERD links a term to an object through that string. A term for a value the sessi
 |---|---|---|---|
 | `species` | `Subject.species` | `Rattus norvegicus` | NCBITaxon:10116 |
 | `strain` | `Subject.strain` | `Long Evans` | RRID:RGD_2308852 (Crl:LE) |
+| `experimenter` | `NWBFile.experimenter` | `Phillips, Hannah` | orcid:0000-0002-9093-0505 |
+| `institution` | `NWBFile.institution` | `Harvard University` | ror:03vek6s52 |
 | `anatomical_structures` | `FiberPhotometryTable.location` | `Nucleus Accumbens` | UBERON:0001882 (nucleus accumbens) |
 | `anatomical_structures` | `FiberPhotometryTable.location` | `Tail of Striatum` | UBERON:0002435 (striatum) |
 | `anatomical_structures` | DANNCE `Skeleton.nodes` | 23 rat23 landmarks | UBERON (see below) |
