@@ -30,5 +30,3 @@ Thumbs.db
 hannah_metadata_request.md
 testing.ipynb
 midway_review.html
-# Spyglass ingestion: local DB credentials + paths
-spyglass/dj_local_conf.json

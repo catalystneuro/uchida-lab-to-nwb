@@ -13,7 +13,7 @@
 set -euo pipefail
 
 MINIFORGE=/opt/miniforge3
-ENV_YAML=/mnt/c/Users/algab/CatalystNeuro/uchida-lab-to-nwb/spyglass/spyglass-photometry-env.yaml
+ENV_YAML="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/spyglass-photometry-env.yaml"
 ENV_NAME="${1:-spyglass-photometry}"
 
 source "${MINIFORGE}/etc/profile.d/conda.sh"
