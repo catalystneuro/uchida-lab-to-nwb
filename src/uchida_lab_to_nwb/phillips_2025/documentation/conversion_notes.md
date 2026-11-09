@@ -426,6 +426,25 @@ registered after `DANNCE`. It writes a second `MultiCameraPoseEstimation`,
 and videos that `DANNCEConverter` writes, its per-camera entries link those videos, and it gets the
 same time shift as the subject's pose. The videos are written once.
 
+## Full conversion runs
+
+**2026-11-09.** All 12 sessions with `convert_all_sessions.py`, repo commit `1ff5ff4` (branch
+`add-task-epochs-and-hed`, which also holds the partner and HERD work), neuroconv `main` at
+`8152f94`, output in `H:/uchida-nwbfiles`. All 12 files written, no error logs.
+- NWB Inspector 0.7.1: no CRITICAL, no best-practice violations. Suggestions only: per-camera
+  `PoseEstimation` descriptions (waiting on neuroconv), single-row `epochs` and `task_table`, and
+  the module name `tasks`.
+- HED validates in all 12 files. Every file has the epoch, task row and 6 cameras (3 calibrated in
+  social day_1/M7, as known).
+- Processed photometry falls back to nominal camera-rate timestamps in 3 sessions (90,000 samples
+  against 90,076 and 90,070 trigger pulses, and 105,000 against 105,071), as documented under
+  Temporal Alignment.
+- Social sessions run about 35 minutes (2,120 s, 105,000 pose frames), except social day_1/M4
+  (1,820 s, 90,000 frames). Lone sessions run about 30 minutes.
+- neuroconv warns that `set_aligned_starting_time`, `get_timestamps` and `alignment`, used in
+  `temporally_align_data_interfaces()`, are deprecated and removed in v0.12.0 / v0.13.0. Since the
+  pin is to `main`, port to `interface.temporal_alignment` before reinstalling a newer neuroconv.
+
 ## TODOs
 
 Internal code/repo work, not blocked on the lab:
@@ -444,7 +463,8 @@ Internal code/repo work, not blocked on the lab:
 - Add a test suite.
 - Replace the neuroconv `main` pin with a release, once one includes the HERD and DANNCE changes.
 - Get the neuroconv fix that writes per-camera `PoseEstimation` descriptions.
-- Re-convert all 12 sessions and run NWB Inspector on the full files.
+- Port `temporally_align_data_interfaces()` to neuroconv's `interface.temporal_alignment` API
+  before updating the neuroconv pin (see Full conversion runs).
 - Upload to DANDI (Dandiset 001935, embargo mode planned) and submit the example notebook to
   `dandi/example-notebooks`.
 

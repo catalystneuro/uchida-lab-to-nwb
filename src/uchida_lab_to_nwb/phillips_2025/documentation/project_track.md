@@ -4,7 +4,7 @@
 **Point person**: Hannah Phillips
 **Dataset**: SFARI ARC, subjects M4, M5, M7 × 2 days × Lone and Social conditions = 12 sessions
 **Repo**: <https://github.com/catalystneuro/uchida-lab-to-nwb>
-**Last updated**: 2026-11-03
+**Last updated**: 2026-11-09
 
 ---
 
@@ -71,8 +71,8 @@
 ## Post-Conversion
 
 - [x] Example notebook: [notebooks/dandi_001935_tutorial.ipynb](../../../../notebooks/dandi_001935_tutorial.ipynb)
-- [ ] Re-convert all 12 sessions with the current code (files in `H:/uchida-nwbfiles` date from August and September 2026)
-- [ ] NWB Inspector on the full files: zero CRITICAL
+- [x] Re-convert all 12 sessions with the current code (2026-11-09, commit `1ff5ff4`, neuroconv `8152f94`; see conversion_notes.md, Full conversion runs)
+- [x] NWB Inspector on the full files: zero CRITICAL, zero violations (2026-11-09)
 - [ ] DANDI upload to Dandiset 001935 (embargo mode planned)
 - [ ] Example notebook PR submitted to `dandi/example-notebooks`
 
