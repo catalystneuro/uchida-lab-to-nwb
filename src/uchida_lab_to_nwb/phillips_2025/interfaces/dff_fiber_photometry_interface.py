@@ -1,4 +1,13 @@
-"""Ad hoc interface for the lab-computed dF/F trace(s) in ``processed_dff.mat``."""
+"""Ad hoc interface for the lab-computed dF/F trace(s) in ``processed_dff.mat``.
+
+Not part of the conversion. Hannah Phillips asked (2026-09-15 midway meeting) to leave
+``processed_dff.mat`` out until the lab confirms what ``dff_resG`` and ``dff_resG2`` represent and why
+their numeric scale differs across sessions. The interface is registered in
+``Phillips2025NWBConverter`` as ``DffDopamineSignal``, but ``convert_session.py`` does not add it to
+``source_data``. To use it, uncomment the three "DffDopamineSignal" blocks in ``convert_session.py``
+(import, source data, table region) and the ``fiber_photometry_dff_dopamine_signal`` block at the
+bottom of ``fiber_photometry.yaml``.
+"""
 
 import numpy as np
 from pydantic import FilePath, validate_call

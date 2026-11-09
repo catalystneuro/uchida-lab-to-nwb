@@ -56,6 +56,7 @@ Lone_data/
       YYMMDD_HHMMSS_M{id}.h5                # pCampi sync (NIDAQ digital input, 1 kHz)
       BBC300_Acq_*.doric                     # raw Doric fiber photometry (HDF5)
       interpolated_campy_and_doric.mat       # lab-processed photometry, interpolated to video rate
+      processed_dff.mat                      # lab dF/F, not converted (see "Not converted" above)
       DANNCE/save_data_AVG0.mat              # 3D pose predictions (23 keypoints)
       calibration/
         calibration.json                     # 6-camera intrinsics + extrinsics
@@ -68,7 +69,7 @@ Lone_data/
 ```
 
 `Social_data/` (`H:/Uchida-CN-data-share/Hannah_data/M4-M7/Social_data/`) mirrors `Lone_data/` per
-subject-session directory, with two differences:
+subject-session directory, except for the pose folder:
 
 ```text
 Social_data/
@@ -77,8 +78,7 @@ Social_data/
       YYMMDD_HHMMSS_M{id}.h5                # pCampi sync — each subject has its own file
       BBC300_Acq_*.doric                     # raw Doric fiber photometry
       interpolated_campy_and_doric.mat       # lab-processed photometry
-      processed_dff.mat                      # dff_resG (+ dff_resG2 for M5/M7); not converted,
-                                              # also present in Lone_data — see "Not converted" above
+      processed_dff.mat                      # dff_resG (+ dff_resG2 for M5/M7); not converted
       sDANNCE/predict05/                     # 3D pose predictions — note folder name `sDANNCE`
         save_data_AVG0.mat                   # (not `DANNCE`, as in Lone_data), plus intermediate
         save_data_AVG.mat                    # DANNCE pipeline artifacts (`init_save_data_AVG.mat`,
@@ -102,6 +102,8 @@ phillips_2025/
 ├── nwbconverter.py              # Phillips2025NWBConverter — 10 interface slots
 ├── convert_session.py           # session_to_nwb() — one subject-session directory, one NWB file
 ├── convert_all_sessions.py      # discovers sessions, resolves subject metadata, batch-converts
+├── inspection.py                # NWB Inspector (DANDI config) on every converted file, summary CSV
+├── upload_to_DANDI.py           # organizes the files for DANDI, compares with the draft, uploads
 ├── general_metadata.yaml        # static NWBFile metadata, Tasks (per condition), HED schema + definitions
 ├── fiber_photometry.yaml        # fiber photometry hardware metadata (devices, indicators, table);
 │                                 # ends with a commented-out AD HOC block for DffFiberPhotometryInterface
@@ -116,10 +118,7 @@ phillips_2025/
 └── documentation/
     ├── conversion_notes.md        # this file
     ├── project_track.md           # conversion progress tracker
-    ├── explore_sync_signals.py    # ad hoc exploration of the pCampi/Doric sync signals
-    ├── inspect_data.py            # ad hoc script for inspecting an output NWB file (not a test suite)
-    ├── testing.ipynb              # ad hoc checks on converted files
-    └── midway_review.html         # material for the 2026-09-15 midway meeting
+    └── explore_sync_signals.py    # ad hoc exploration of the pCampi/Doric sync signals
 ```
 
 The example notebook for DANDI is `notebooks/dandi_001935_tutorial.ipynb` at the repo root.
@@ -145,17 +144,19 @@ Raw Doric fiber photometry (`DoricFiberPhotometryInterface`) and DANNCE pose + v
     so it holds the subject's photometry only.
 - Per Lone-session directory: one `.h5` (pCampi), one `.doric` (raw photometry), one
   `interpolated_campy_and_doric.mat` (processed photometry, present once the lab pipeline has
-  run), one `DANNCE/save_data_AVG0.mat`, one `calibration/` folder, 6 camera subfolders under
-  `videos/`.
-- Per Social-session directory: same as Lone, plus `processed_dff.mat`, but with
-  `sDANNCE/predict05/` in place of `DANNCE/`.
+  run), one `processed_dff.mat` (not converted), one `DANNCE/save_data_AVG0.mat`, one
+  `calibration/` folder, 6 camera subfolders under `videos/`.
+- Per Social-session directory: same as Lone, with `sDANNCE/predict05/` in place of `DANNCE/`.
 
 ## Sessions / Subjects
 
 - **Subjects:** M4, M5, M7 only (M1, M2, M3, M6 are not part of this dataset — confirmed by
   Hannah Phillips).
-- **Session/subject ID:** parsed from the pCampi filename, `YYMMDD_HHMMSS_M{id}.h5` →
-  `session_id = f"{datetime_str}_{subject_id}"`, e.g. `"240624_135840_M4"`.
+- **Subject ID:** the session folder name (`M4`, `M5`, `M7`).
+- **Session ID:** built from the folder path, `<Condition>_data/day_<N>/M<id>` →
+  `day-<N>-<condition>`, e.g. `Lone_data/day_1/M4` → `day-1-lone`. The file is
+  `sub-M4/sub-M4_ses-day-1-lone.nwb`. `session_start_time` comes from the pCampi filename,
+  `YYMMDD_HHMMSS_M{id}.h5`, in America/New_York.
 - **Per-subject metadata source:** `Subject metadata.xlsx` (lab-provided), transposed format
   (rows = fields, columns = subjects): `Subject ID`, `Species`, `Strain / genotype`, `Sex`,
   `Date of birth`, `Weight at time of experiment`, `Experimental group`, `Surgery date`. Read by
@@ -182,9 +183,9 @@ Raw Doric fiber photometry (`DoricFiberPhotometryInterface`) and DANNCE pose + v
 | Interface | Writes | Notes |
 |---|---|---|
 | `DoricFiberPhotometryInterface` (neuroconv, ×2: `DoricControl`, `DoricDopamineSignal`) | 2 `FiberPhotometryResponseSeries` in `acquisition`, each with 2 columns (NAc, TS) | One instance per excitation channel (EXC1=control/tdTomato 568 nm, EXC2=dopamine_signal/GRABDA3m 473 nm); each column-stacks 2 ROI streams via a 2-element `stream_names` list. Shares one `FiberPhotometryTable` (4 rows: 2 ROIs × 2 channels) defined in `fiber_photometry.yaml`. |
-| `ProcessedFiberPhotometryInterface` (custom, ×2: `InterpolatedFPControlSignal`, `InterpolatedFPDopamineSignal`) | 2 `FiberPhotometryResponseSeries` in `processing/ophys` | Reads `interpolated_campy_and_doric.mat` (raw fluorescence, not dF/F); reuses the raw interfaces' `FiberPhotometryTable` rows. No embedded timestamps — generates a nominal regular series from the camera frame rate (read from `videos/Camera1/metadata.csv`), on the assumption `interpolated_data` is resampled to the saved-video-frame grid. Only present when the `.mat` file and `videos/` folder both exist. |
+| `ProcessedFiberPhotometryInterface` (custom, ×2: `InterpolatedFPControlSignal`, `InterpolatedFPDopamineSignal`) | 2 `FiberPhotometryResponseSeries` in `processing/ophys` | Reads `interpolated_campy_and_doric.mat` (raw fluorescence, not dF/F); reuses the raw interfaces' `FiberPhotometryTable` rows. No embedded timestamps: the interface generates nominal ones from the camera frame rate (`videos/Camera1/metadata.csv`), which the converter replaces with the Doric camera-trigger times in 9 of 12 sessions (see Temporal Alignment). Only present when the `.mat` file and `videos/` folder both exist. |
 | `PCampiSyncInterface` (custom, ×2: `PCampiSyncCampyTrigger`, `PCampiSyncRbfmcFrames`) | 1 `TimeSeries` each (`SyncTTL_campy_trigger`, `SyncTTL_rbfmc_frames`) in `acquisition` | Writes one channel per instance — takes no assumptions about channel names or count; `channel_name` is required at init, and `get_available_channels(file_path)` discovers the channels present in a given `.h5` file. `convert_session.py` instantiates one interface per channel found. Also the **only** interface class that sets `NWBFile.session_start_time` (parsed from the pCampi filename), and its `campy_trigger` instance defines the NWB time base (see Temporal Alignment). `rbfmc_frames` reads as all-zero (`has_meaningful_signal()` returns False) so it is skipped with a warning, not written. |
-| `DANNCEConverter` (neuroconv) | `MultiCameraPoseEstimation` (ndx-pose) in `processing/behavior`, with one per-camera `PoseEstimation` child linking each camera and its video, + 6 `ImageSeries` (external video) + calibrated `Device`s | Reads `DANNCE/save_data_AVG0.mat` (Lone) or `sDANNCE/predict05/save_data_AVG0.mat` (Social), `animal_index=0` in both. There is no sync table, so pose timestamps are `sampleID` / camera frame rate, with the rate from `videos/Camera1/metadata.csv` passed as `sampling_rate`; each video is timed by its own `frametimes.npy` (both then re-anchored to the pCampi clock, see Temporal Alignment). Skeleton (`SDANNCE_LANDMARK_NAMES`/`SDANNCE_SKELETON_EDGES` from `utils/constants.py`) is injected into `Behavior/Pose` metadata at conversion time (`session_to_nwb()`), keyed by `pose_key` ("PoseEstimationDANNCE"). |
+| `DANNCEConverter` (neuroconv) | `MultiCameraPoseEstimation` (ndx-pose) in `processing/behavior`, with one per-camera `PoseEstimation` child linking each camera and its video, + 6 `ImageSeries` (external video) + calibrated `Device`s | Reads `DANNCE/save_data_AVG0.mat` (Lone) or `sDANNCE/predict05/save_data_AVG0.mat` (Social), `animal_index=0` in both. There is no sync table, so pose timestamps are `sampleID` / camera frame rate, with the rate from `videos/Camera1/metadata.csv` passed as `sampling_rate`; each video is timed by its own `frametimes.npy` (both then re-anchored to the pCampi clock, see Temporal Alignment). Skeleton (`SDANNCE_LANDMARK_NAMES`/`SDANNCE_SKELETON_EDGES` from `utils/constants.py`) is injected into `metadata["Pose"]` at conversion time (`session_to_nwb()`), keyed by `pose_key` ("PoseEstimationDANNCE"). |
 | `DANNCEInterface` (neuroconv, `DANNCEPartner`, social sessions only) | Second `MultiCameraPoseEstimation`, `PoseEstimationDANNCEPartner`, in `processing/behavior` | The partner rat (`animal_index=1`) from the same sDANNCE file. Reuses the camera Devices and videos written by `DANNCE`; its Skeleton is not linked to the file's Subject. |
 | `TaskEpochInterface` (custom, `TaskEpoch`) | 1 row in `epochs`, `processing/tasks/task_table` (1 row), `HedLabMetaData` | Epoch spans the pCampi recording (0 to `n_samples / 1 kHz`; 10 s in stub mode), tagged `01_<task_name>`. Task text and HED come from `general_metadata.yaml` (`Tasks`, keyed by condition, and `HED`). See Metadata → Task, epoch and HED. |
 
@@ -200,12 +201,13 @@ is encountered), and merges `general_metadata.yaml` + `fiber_photometry.yaml` + 
 `subject_metadata` into one NWB file. `convert_all_sessions.py` batches this over every
 `day_*/M*/` directory with both a `.h5` and a `.doric` file present, resolving each subject's
 metadata via `get_subject_metadata()` (warning + fallback if missing), using
-`ProcessPoolExecutor` and per-subject error capture to a file.
+`ProcessPoolExecutor` and per-session error capture to `exceptions/` in the output folder. A
+session whose subject is not in the sheet is skipped with a warning.
 
 Dependencies (`pyproject.toml`): `neuroconv[dannce]` from `main` (the HERD and DANNCE changes are
 not in a release yet), `pynwb>=4.0.0`, `nwbinspector`, `ndx-pose==0.4.0`,
-`ndx-fiber-photometry==0.2.4`, `ndx-ophys-devices==0.3.1`, `ndx-hed==0.3.0`, `openpyxl`, `python-dateutil`,
-`opencv-python-headless`.
+`ndx-fiber-photometry==0.2.4`, `ndx-ophys-devices==0.3.1`, `ndx-hed==0.3.0`, `dandi`, `tqdm`, `openpyxl`,
+`python-dateutil`, `opencv-python-headless`.
 
 ## Metadata
 
@@ -233,12 +235,12 @@ not in a release yet), `pynwb>=4.0.0`, `nwbinspector`, `ndx-pose==0.4.0`,
   `SDANNCE_SKELETON_EDGES` (23 edges, from `diegoaldarondo/Label3D`'s `rat23.mat`, converted from
   1- to 0-based indices) — mirrors the same constants in `olveczky-lab-to-nwb`'s
   `klibaite_2025_rat` conversion, which uses the same rat23 DANNCE skeleton. `DANNCEInterface`'s
-  own `get_metadata()` seeds `Behavior/Pose/Skeletons[pose_key]` with `nodes` but an empty `edges`
+  own `get_metadata()` seeds `Pose/Skeletons[pose_key]` with `nodes` but an empty `edges`
   list (it has no anatomical knowledge of the skeleton); `session_to_nwb()` overrides that entry,
   keyed by the same `pose_key` used in `source_data["DANNCE"]["metadata_key"]`, with the real
   edges. The override key must match `pose_key` exactly (not the Skeleton's descriptive `name`
   field) — `DANNCEInterface.add_to_nwbfile()` looks up the skeleton via
-  `PoseEstimations[pose_key]["skeleton_metadata_key"]`, and the metadata merge there is a
+  `MultiCameraPoseEstimations[pose_key]["skeleton_metadata_key"]`, and the metadata merge there is a
   key-for-key `DeepDict.deep_update`, not a name-based match.
 
 ### Task, epoch and HED (Spyglass `TaskEpoch`)
@@ -379,7 +381,6 @@ Hannah Phillips shared the MATLAB alignment script at the 2026-09-15 midway meet
 above and Open Questions): those 3 sessions' `.mat` files appear to have been produced by a
 different pipeline run than the other 9. `ProcessedFiberPhotometryInterface`'s nominal-camera-rate
 timestamps are now only a fallback for those 3 sessions, not the default for all of them.
-See https://claude.ai/code/artifact/2979af36-32b7-4135-a869-ceab195a41a2
 
 `NWBFile.session_start_time` is set from the pCampi filename (`PCampiSyncInterface` is the only
 interface that provides it), and `campy_trigger`'s own clock (`starting_time=0.0` relative to that
@@ -441,9 +442,45 @@ same time shift as the subject's pose. The videos are written once.
   Temporal Alignment.
 - Social sessions run about 35 minutes (2,120 s, 105,000 pose frames), except social day_1/M4
   (1,820 s, 90,000 frames). Lone sessions run about 30 minutes.
+- Inspection rerun with `inspection.py` on the same files (2026-11-09): no CRITICAL, no
+  violations; 9 suggestions per lone file and 15 per social file (the partner adds 6 per-camera
+  `PoseEstimation` descriptions). HERD references: 29 per lone file, 52 per social file (the
+  partner's skeleton nodes).
 - neuroconv warns that `set_aligned_starting_time`, `get_timestamps` and `alignment`, used in
   `temporally_align_data_interfaces()`, are deprecated and removed in v0.12.0 / v0.13.0. Since the
   pin is to `main`, port to `interface.temporal_alignment` before reinstalling a newer neuroconv.
+
+## Inspection and DANDI upload
+
+The output folder must be on the same drive as the data share. The videos are linked by a path
+relative to the NWB file; across drives the path stays absolute and NWB Inspector reports
+`check_image_series_external_file_relative` for each video (seen on a stub written to C:, 2026-11-09).
+
+`inspection.py` runs NWB Inspector with the DANDI configuration on every
+`<output folder>/sub-*/*.nwb` file (stubs in `nwb_stub/` are left out). It writes one report per file
+to `<output folder>/inspector_reports/` and `inspection_summary.csv` (subject, session, message
+count per importance level, number of HERD references).
+
+`upload_to_DANDI.py` (ported from `hnasko-lab-to-nwb`, `hadjas_2025/upload_to_DANDI.py`) uploads in
+two steps:
+
+1. `organize_nwbfiles` downloads the draft's `dandiset.yaml` and runs `dandi organize` in copy mode
+   into `<dandiset folder>/001935`. Files are renamed `sub-M4_ses-day-1-lone_image.nwb` (dandi adds
+   `_image` for the linked videos), and each file's 6 videos are copied to a folder of the same name
+   with the links updated. The conversion output is not changed.
+2. `report_draft_assets` lists each draft asset as replaced, superseded or not reconverted, and
+   each new file. `upload_organized_files` validates (NWB schema, DANDI requirements, dandiset
+   metadata) and uploads only if there are no errors.
+
+The `__main__` block organizes into `H:/uchida-dandiset/001935` and prints the report; it uploads
+only once `upload = True` is set. `H:/001935` holds an older organized copy (2026-07-30) and is not
+used.
+
+State of the 001935 draft on 2026-11-09: 11 assets from an earlier test upload, the files of M4
+day-1 lone and M4 day-1 social (`sub-M4_ses-day-1-{lone,social}_image.nwb`) and 9 videos. They
+were converted before the partner, HERD and task work. The new upload replaces both NWB files at
+the same paths. Their videos get new file names (dandi names them by the UUID of the video series),
+so the old videos stay on the draft as superseded until they are deleted.
 
 ## TODOs
 
@@ -463,9 +500,10 @@ Internal code/repo work, not blocked on the lab:
 - Get the neuroconv fix that writes per-camera `PoseEstimation` descriptions.
 - Port `temporally_align_data_interfaces()` to neuroconv's `interface.temporal_alignment` API
   before updating the neuroconv pin (see Full conversion runs).
-- Upload to DANDI (Dandiset 001935, embargo mode planned) and submit the example notebook to
+- Upload to DANDI with `upload_to_DANDI.py` (Dandiset 001935, embargoed), then delete the
+  superseded videos of the earlier test upload from the draft. Submit the example notebook to
   `dandi/example-notebooks`.
 
 Done: HERD ontology annotation (see Metadata → Ontology annotation); task, epoch and HED
 annotation (see Metadata → Task, epoch and HED). Tutorial sections on the social partner (4e) and on
-task, epoch and HED (2026-11-09).
+task, epoch and HED (2026-11-09). Inspection and DANDI upload scripts (2026-11-09).
