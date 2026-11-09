@@ -53,8 +53,11 @@ PER_FILE_TABLES = (
     sgc.RawPosition,
     sgc.DIOEvents,
     sgc.SensorData,
+    sgc.ExternalResources,
+    sgc.ExternalResources.Reference,
 )
 SHARED_TABLES = (
+    sgc.OntologyTerm,
     sgc.Subject,
     sgc.LabMember,
     sgc.Institution,
