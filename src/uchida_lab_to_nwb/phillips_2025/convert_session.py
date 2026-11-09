@@ -182,6 +182,11 @@ def session_to_nwb(
         source_data[key] = dict(file_path=str(pcampi_file), channel_name=channel_name)
         conversion_options[key] = dict(stub_test=stub_test)
 
+    # Epoch + task (always present): one epoch spanning the pCampi recording and one task row for
+    # the condition, in the layout Spyglass reads, annotated with HED (see general_metadata.yaml).
+    source_data["TaskEpoch"] = dict(pcampi_file_path=str(pcampi_file), task_metadata_key=condition)
+    conversion_options["TaskEpoch"] = dict(stub_test=stub_test)
+
     # Raw Doric photometry (always present): one interface per channel, each writing a single
     # FiberPhotometryResponseSeries whose two columns are the NAc and TS ROIs (column-stacked
     # via a 2-element stream_names list; both ROIs under one excitation channel share the same
