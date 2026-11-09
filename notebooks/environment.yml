@@ -15,3 +15,4 @@ dependencies:
     - ndx-fiber-photometry
     - ndx-ophys-devices>=0.3.1
     - ndx-pose
+    - ndx-hed
