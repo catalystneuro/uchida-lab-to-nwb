@@ -19,3 +19,84 @@ NWBFile:
     - autism
     - SFARI ARC
   # related_publications: []  # TODO: add DOI when available
+
+# Behavioral task of each condition, written by TaskEpochInterface to processing/tasks in the
+# layout Spyglass reads into Task and TaskEpoch. Keyed by condition (the Lone_data / Social_data
+# folder). `hed` refers to a definition under HED below.
+Tasks:
+  lone:
+    task_name: lone
+    task_description: >-
+      The implanted rat behaves freely, alone in the arena. Dopamine in the nucleus accumbens and
+      tail of striatum is recorded with fiber photometry (GRABDA3m, with tdTomato as control), and
+      behavior with 6-camera video and 3D pose estimation (DANNCE).
+    task_environment: arena
+    hed: Def/Lone-condition
+  social:
+    task_name: social
+    task_description: >-
+      The implanted rat behaves freely in the arena with a partner rat. Dopamine in the nucleus
+      accumbens and tail of striatum of the implanted rat is recorded with fiber photometry
+      (GRABDA3m, with tdTomato as control). The partner has no fiber photometry. Both rats are
+      tracked with 6-camera video and 3D pose estimation (social DANNCE).
+    task_environment: arena
+    hed: Def/Social-condition
+
+# HED (Hierarchical Event Descriptors) schema version and lab definitions, written to
+# HedLabMetaData (ndx-hed). The implanted rat is the Experiment-participant; in the social
+# condition the partner rat is an Experiment-actor (an agent with a set role in the scenario).
+# Validated with ndx_hed HedNWBValidator against HED 8.5.0 on 2026-11-09.
+HED:
+  hed_schema_version: "8.5.0"
+  definitions: >-
+    (Definition/Lone-condition, (Task, (Experiment-participant, Animal-agent, Awake), Indoors, Real-world)),
+    (Definition/Social-condition, (Task, (Experiment-participant, Animal-agent, Awake), (Experiment-actor, Animal-agent), Indoors, Real-world))
+
+# External resources (HERD). NeuroConv writes every term stated here into the file under
+# /general/external_resources during run_conversion. Each map is keyed by the exact value it
+# annotates; terms for values a session does not have are skipped. IDs checked against the EBI
+# Ontology Lookup Service (UBERON, NCBITaxon) and the SciCrunch resolver (RRID) on 2026-10-16.
+ExternalResources:
+  species:
+    Rattus norvegicus: { id: "NCBITaxon:10116", uri: "http://purl.obolibrary.org/obo/NCBITaxon_10116" }
+  # Subject.strain as written from the subject sheet. Long-Evans term (Crl:LE, Charles River), the
+  # same one NeuroConv's strain table gives; the supplier is not recorded in the subject sheet.
+  strain:
+    Long Evans: { id: "RRID:RGD_2308852", uri: "https://scicrunch.org/resolver/RRID:RGD_2308852" }
+  # NWBFile.experimenter, ORCID iD confirmed with the lab on 2026-11-03.
+  experimenter:
+    Phillips, Hannah: { id: "orcid:0000-0002-9093-0505", uri: "https://orcid.org/0000-0002-9093-0505" }
+  # NWBFile.institution, ROR ID checked against the ROR API on 2026-11-03.
+  institution:
+    Harvard University: { id: "ror:03vek6s52", uri: "https://ror.org/03vek6s52" }
+  # FiberPhotometryTable locations and rat23 skeleton node names share one map.
+  anatomical_structures:
+    # Keys must match the `location` strings in fiber_photometry.yaml. Tail of Striatum has no
+    # UBERON or Allen term (checked 2026-08-12) and uses the broader striatum.
+    Nucleus Accumbens: { id: "UBERON:0001882", uri: "http://purl.obolibrary.org/obo/UBERON_0001882" }
+    Tail of Striatum: { id: "UBERON:0002435", uri: "http://purl.obolibrary.org/obo/UBERON_0002435" }  # striatum
+    # rat23 skeleton nodes. UBERON has no left/right terms, so both sides share one term (YAML
+    # anchors), and the three spine points share the vertebral column term.
+    Snout: { id: "UBERON:0006333", uri: "http://purl.obolibrary.org/obo/UBERON_0006333" }  # snout
+    EarLeft: &ear { id: "UBERON:0001691", uri: "http://purl.obolibrary.org/obo/UBERON_0001691" }  # external ear
+    EarRight: *ear
+    SpineFront: &spine { id: "UBERON:0001130", uri: "http://purl.obolibrary.org/obo/UBERON_0001130" }  # vertebral column
+    SpineMiddle: *spine
+    SpineLow: *spine
+    TailBase: { id: "UBERON:0002415", uri: "http://purl.obolibrary.org/obo/UBERON_0002415" }  # tail (UBERON has no tail-base term)
+    ShoulderLeft: &shoulder { id: "UBERON:0001467", uri: "http://purl.obolibrary.org/obo/UBERON_0001467" }  # shoulder
+    ShoulderRight: *shoulder
+    ElbowLeft: &elbow { id: "UBERON:0001461", uri: "http://purl.obolibrary.org/obo/UBERON_0001461" }  # elbow
+    ElbowRight: *elbow
+    WristLeft: &wrist { id: "UBERON:0004452", uri: "http://purl.obolibrary.org/obo/UBERON_0004452" }  # carpal region
+    WristRight: *wrist
+    HandLeft: &hand { id: "UBERON:0002398", uri: "http://purl.obolibrary.org/obo/UBERON_0002398" }  # manus (forepaw)
+    HandRight: *hand
+    HipLeft: &hip { id: "UBERON:0001464", uri: "http://purl.obolibrary.org/obo/UBERON_0001464" }  # hip
+    HipRight: *hip
+    KneeLeft: &knee { id: "UBERON:0001465", uri: "http://purl.obolibrary.org/obo/UBERON_0001465" }  # knee
+    KneeRight: *knee
+    AnkleLeft: &ankle { id: "UBERON:0004454", uri: "http://purl.obolibrary.org/obo/UBERON_0004454" }  # tarsal region
+    AnkleRight: *ankle
+    FootLeft: &foot { id: "UBERON:0002387", uri: "http://purl.obolibrary.org/obo/UBERON_0002387" }  # pes (hindpaw)
+    FootRight: *foot

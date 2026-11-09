@@ -29,7 +29,10 @@ class ProcessedFiberPhotometryInterface(BaseFiberPhotometryInterface):
     ``processing/ophys`` module rather than ``acquisition``, since the data is a processed
     derivative.
 
-    Timestamps are not embedded in the ``.mat`` file.
+    Timestamps are not embedded in the ``.mat`` file. This interface generates nominal ones from
+    ``sampling_rate``; ``Phillips2025NWBConverter.temporally_align_data_interfaces()`` replaces
+    them with the Doric camera-trigger times when the sample counts match (9 of the 12 sessions)
+    and otherwise shifts the nominal ones onto the pCampi clock.
     """
 
     display_name = "ProcessedFiberPhotometry"
@@ -79,9 +82,7 @@ class ProcessedFiberPhotometryInterface(BaseFiberPhotometryInterface):
             verbose=verbose,
         )
         self._sampling_rate = float(sampling_rate)
-        self._streams: dict[str, int] = self._discover_streams(
-            self.source_data["file_path"]
-        )
+        self._streams: dict[str, int] = self._discover_streams(self.source_data["file_path"])
 
     # ------------------------------------------------------------------
     # Stream discovery
@@ -169,24 +170,16 @@ class ProcessedFiberPhotometryInterface(BaseFiberPhotometryInterface):
             return array[: min(stub_samples, len(array))] if stub_test else array
 
         add_fiber_photometry_devices(nwbfile=nwbfile, metadata=metadata)
-        fiber_photometry_table = add_fiber_photometry_lab_metadata(
-            nwbfile=nwbfile,
-            fiber_photometry_metadata=fiber_photometry_metadata,
-            devices_metadata=metadata["Devices"],
-        )
+        fiber_photometry_table = add_fiber_photometry_lab_metadata(nwbfile=nwbfile, metadata=metadata)
 
         data = stub(self._read_response_data())
         timestamps = stub(self.get_timestamps())
-        timing_kwargs = self._timing_kwargs_from_timestamps(
-            timestamps, always_write_timestamps
-        )
+        timing_kwargs = self._timing_kwargs_from_timestamps(timestamps, always_write_timestamps)
 
         series_metadata = fiber_photometry_metadata[self.metadata_key]
         table_region = get_fiber_photometry_table_region(
             fiber_photometry_table=fiber_photometry_table,
-            table_rows_metadata=fiber_photometry_metadata["FiberPhotometryTable"][
-                "rows"
-            ],
+            table_rows_metadata=fiber_photometry_metadata["FiberPhotometryTable"]["rows"],
             row_metadata_keys=series_metadata["fiber_photometry_table_region"],
             description=series_metadata["fiber_photometry_table_region_description"],
         )

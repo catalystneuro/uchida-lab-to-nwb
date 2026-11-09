@@ -1,7 +1,11 @@
-"""Convert a single Uchida Lab (Phillips 2025) session to NWB."""
+"""Convert a single Uchida Lab (Phillips 2025) session to NWB.
+
+One subject-session directory, <data folder>/<Lone|Social>_data/day_<N>/M<id>/, gives one NWB file,
+<output folder>/sub-M<id>/sub-M<id>_ses-day-<N>-<lone|social>.nwb. Run this file to convert one session; the paths
+are set in the ``if __name__ == "__main__":`` block at the bottom.
+"""
 
 import csv
-import re
 from datetime import date, datetime, time
 from pathlib import Path
 from typing import Union
@@ -28,9 +32,6 @@ from uchida_lab_to_nwb.phillips_2025.utils.subject_metadata import (
 
 # Harvard is in the Eastern timezone
 _TIMEZONE = ZoneInfo("America/New_York")
-
-# pCampi filename pattern: YYMMDD_HHMMSS_M{id}.h5
-_PCAMPI_PATTERN = re.compile(r"(\d{6}_\d{6})_(M\d+)\.h5")
 
 # Maps pCampi digital channel names (as read from the .h5 file) to the interface slot each
 # is registered under in Phillips2025NWBConverter.data_interface_classes.
@@ -92,29 +93,39 @@ def session_to_nwb(
 ) -> None:
     """Convert one subject-session directory to an NWB file.
 
+    The session ID is built from the directory path: ``Social_data/day_1/M4`` gives ``day-1-social``,
+    and the file is written to ``<output_dir_path>/sub-M4/sub-M4_ses-day-1-social.nwb``.
+
     Parameters
     ----------
     session_dir_path : str or Path
-        Path to a single subject-session directory, e.g.
-        ``Lone_data/day_1/M4``.
-        Expected contents:
-        - ``YYYYMMDD_HHMMSS_M{id}.h5``    — pCampi sync file
-        - ``BBC300_Acq_*.doric``           — raw Doric photometry
-        - ``interpolated_campy_and_doric.mat``      — processed (interpolated) fiber photometry
-        - ``processed_dff.mat``            — lab-computed dF/F; NOT read by default, see the
-          commented-out "DffDopamineSignal" block below
-        - ``DANNCE/save_data_AVG0.mat``    — DANNCE pose output
-        - ``calibration/calibration.json`` — 6-camera calibration (+ hires_camN_params.mat)
-        - ``videos/Camera{1..6}/0.mp4``    — per-camera videos
-        - ``videos/Camera1/metadata.csv``  — camera acquisition metadata (frameRate, etc.)
+        Path to a single subject-session directory, e.g. ``Lone_data/day_1/M4``. Expected contents:
+
+        - ``YYMMDD_HHMMSS_M{id}.h5``: pCampi sync file (required)
+        - ``BBC300_Acq_*.doric``: raw Doric photometry (required)
+        - ``interpolated_campy_and_doric.mat``: processed (interpolated) fiber photometry
+        - ``processed_dff.mat``: lab-computed dF/F; not read, see the commented-out
+          "DffDopamineSignal" block below
+        - ``DANNCE/save_data_AVG0.mat`` (lone) or ``sDANNCE/predict05/save_data_AVG0.mat``
+          (social, both rats): DANNCE pose output
+        - ``calibration/calibration.json`` and ``hires_camN_params.mat``: camera calibration
+        - ``videos/Camera{1..6}/0.mp4`` and ``frametimes.npy``: per-camera videos and frame times
+        - ``videos/Camera1/metadata.csv``: camera acquisition metadata (frameRate)
+
+        The processed photometry and DANNCE interfaces are added only when their files and the
+        ``videos`` folder exist.
     output_dir_path : str or Path
-        Directory where the NWB file will be written.
+        Directory where the subject folder and the NWB file are written. With ``stub_test=True``
+        the file goes to ``<output_dir_path>/nwb_stub/`` instead.
     subject_metadata : dict
-        Per-subject NWB Subject fields (species, sex, age, strain, etc.).
+        NWB Subject fields, from ``utils.subject_metadata.get_subject_metadata()``. Must hold
+        ``subject_id``.
     stub_test : bool
-        If True, write a small stub file for quick testing.
+        If True, write a small stub file for quick testing (photometry, sync and pose truncated;
+        the videos are linked in full).
     overwrite : bool
-        If True, overwrite an existing NWB file at the output path.
+        If True, overwrite an existing NWB file at the output path. If False, an existing file
+        is skipped.
     verbose : bool
         Pass-through to converter interfaces.
 
@@ -123,8 +134,8 @@ def session_to_nwb(
     ``NWBFile.session_start_time`` is set from the pCampi filename (``PCampiSyncInterface`` is the
     only interface that sets it). ``Phillips2025NWBConverter.temporally_align_data_interfaces()``
     (see ``nwbconverter.py``) aligns the raw and processed Doric fiber photometry interfaces, and
-    the DANNCE pose + video interfaces, onto that same pCampi clock -- see conversion_notes.md for
-    the full description and remaining open items.
+    the DANNCE pose + video interfaces, onto that same pCampi clock. See conversion_notes.md,
+    Temporal Alignment.
     """
     session_dir_path = Path(session_dir_path)
     output_dir_path = Path(output_dir_path)
@@ -182,6 +193,11 @@ def session_to_nwb(
         source_data[key] = dict(file_path=str(pcampi_file), channel_name=channel_name)
         conversion_options[key] = dict(stub_test=stub_test)
 
+    # Epoch + task (always present): one epoch spanning the pCampi recording and one task row for
+    # the condition, in the layout Spyglass reads, annotated with HED (see general_metadata.yaml).
+    source_data["TaskEpoch"] = dict(pcampi_file_path=str(pcampi_file), task_metadata_key=condition)
+    conversion_options["TaskEpoch"] = dict(stub_test=stub_test)
+
     # Raw Doric photometry (always present): one interface per channel, each writing a single
     # FiberPhotometryResponseSeries whose two columns are the NAc and TS ROIs (column-stacked
     # via a 2-element stream_names list; both ROIs under one excitation channel share the same
@@ -235,8 +251,12 @@ def session_to_nwb(
     # DANNCE pose estimation + 6-camera video (combined via DANNCEConverter). No
     # frametimes_file_path is passed; instead DANNCE pose timestamps are computed
     # from sampleID / sampling_rate, and each camera's video keeps its own native
-    # per-frame timestamps.
+    # per-frame timestamps. There is no sync table, so neuroconv needs the camera
+    # frame rate passed explicitly as sampling_rate.
+    # In social sessions the sDANNCE file holds both rats: index 0 is the implanted subject and
+    # index 1 the partner. The partner is treated as an external stimulus: its pose is written, but it gets no Subject.
     pose_key = "PoseEstimationDANNCE"
+    partner_pose_key = "PoseEstimationDANNCEPartner"
     if dannce_mat.is_file() and videos_folder_path.is_dir():
 
         source_data["DANNCE"] = dict(
@@ -246,6 +266,7 @@ def session_to_nwb(
             subject_name=subject_id,
             metadata_key=pose_key,
             animal_index=0,
+            sampling_rate=_read_camera_frame_rate(videos_folder_path),
         )
         calibration_path = session_dir_path / "calibration"
         if calibration_path.is_dir():
@@ -253,6 +274,21 @@ def session_to_nwb(
         # DANNCEConverter writes video in full regardless of stub_test; only the DANNCE
         # pose predictions are truncated for quick smoke testing.
         conversion_options["DANNCE"] = dict(stub_test=stub_test)
+
+        if condition == "social":
+            # Same cameras as DANNCEConverter, which takes them from the videos folder.
+            camera_names = sorted(path.name for path in videos_folder_path.iterdir() if path.is_dir())
+            source_data["DANNCEPartner"] = dict(
+                file_paths=str(dannce_mat),
+                landmark_names=SDANNCE_LANDMARK_NAMES,
+                metadata_key=partner_pose_key,
+                camera_names=camera_names,
+                animal_index=1,
+                sampling_rate=source_data["DANNCE"]["sampling_rate"],
+            )
+            if calibration_path.is_dir():
+                source_data["DANNCEPartner"]["calibration_path"] = str(calibration_path)
+            conversion_options["DANNCEPartner"] = dict(stub_test=stub_test)
 
     # ── Instantiate converter ────────────────────────────────────────────────
     converter = Phillips2025NWBConverter(source_data=source_data, verbose=verbose)
@@ -362,12 +398,76 @@ def session_to_nwb(
             "nodes": SDANNCE_LANDMARK_NAMES,
             "edges": SDANNCE_SKELETON_EDGES,
         }
-        pose_metadata.setdefault("MultiCameraPoseEstimations", {})[pose_key] = {
-            "name": pose_key,
-            "source_software": "DANNCE",
-            "scorer": "DANNCE",
-            "description": "3D keypoint coordinates estimated using DANNCE.",
-        }
+        # Update the container entry instead of replacing it: the interface's default entry also
+        # holds "skeleton_metadata_key", and without it no Skeleton is written.
+        pose_metadata.setdefault("MultiCameraPoseEstimations", {}).setdefault(pose_key, {}).update(
+            {
+                "name": pose_key,
+                "source_software": "DANNCE",
+                "scorer": "DANNCE",
+                "description": "3D keypoint coordinates estimated using DANNCE.",
+            }
+        )
+        container_keys = [pose_key]
+        if "DANNCEPartner" in source_data:
+            # neuroconv links a Skeleton to the file's Subject unless its "subject" names someone else,
+            # so naming the partner keeps its Skeleton unlinked; the partner is not a Subject of this file.
+            pose_metadata["Skeletons"][partner_pose_key] = {
+                "name": f"Skeleton{partner_pose_key}",
+                "nodes": SDANNCE_LANDMARK_NAMES,
+                "edges": SDANNCE_SKELETON_EDGES,
+                "subject": "partner",
+            }
+            pose_metadata["MultiCameraPoseEstimations"][partner_pose_key].update(
+                {
+                    "name": partner_pose_key,
+                    "source_software": "DANNCE",
+                    "scorer": "DANNCE",
+                    "description": (
+                        "3D keypoint coordinates of the partner rat, estimated using DANNCE. The partner shares the "
+                        "arena with the subject in the social condition and has no fiber photometry."
+                    ),
+                }
+            )
+            # Link the partner's per-camera entries to the videos DANNCEConverter writes for the subject.
+            camera_to_source_video_key = {
+                pose_metadata["PoseEstimations"][key]["device_metadata_key"]: pose_metadata["PoseEstimations"][key][
+                    "source_video_metadata_key"
+                ]
+                for key in pose_metadata["MultiCameraPoseEstimations"][pose_key]["pose_estimation_metadata_keys"]
+            }
+            for key in pose_metadata["MultiCameraPoseEstimations"][partner_pose_key]["pose_estimation_metadata_keys"]:
+                camera_pose_metadata = pose_metadata["PoseEstimations"][key]
+                camera_pose_metadata["source_video_metadata_key"] = camera_to_source_video_key[
+                    camera_pose_metadata["device_metadata_key"]
+                ]
+            container_keys.append(partner_pose_key)
+
+        # neuroconv leaves the cameras, their shared DeviceModel, and the per-camera PoseEstimation
+        # children without a description (NWB Inspector check_description).
+        camera_pose_keys = [
+            camera_pose_key
+            for container_key in container_keys
+            for camera_pose_key in pose_metadata["MultiCameraPoseEstimations"][container_key][
+                "pose_estimation_metadata_keys"
+            ]
+        ]
+        for camera_pose_key in camera_pose_keys:
+            camera_pose_metadata = pose_metadata["PoseEstimations"][camera_pose_key]
+            camera_name = camera_pose_metadata["device_metadata_key"]
+            camera_pose_metadata["description"] = (
+                f"{camera_name} view of the DANNCE 3D pose estimation. Links the camera and its source video; "
+                "DANNCE writes no per-camera 2D keypoints."
+            )
+            camera_metadata = metadata["Devices"][camera_name]
+            camera_metadata["description"] = f"{camera_name} of the 6-camera behavior video rig, acquired with campy."
+            device_model_metadata_key = camera_metadata.get("device_model_metadata_key")
+            if device_model_metadata_key is not None:
+                device_model_metadata = metadata["DeviceModels"][device_model_metadata_key]
+                device_model_metadata["description"] = (
+                    f"{device_model_metadata['manufacturer'].capitalize()} {device_model_metadata['name']} camera "
+                    "used for the 6-camera behavior video."
+                )
 
     # Promote date_of_birth to datetime with timezone if loaded as a bare date
     # (PyYAML parses YYYY-MM-DD as datetime.date; PyNWB Subject requires datetime)

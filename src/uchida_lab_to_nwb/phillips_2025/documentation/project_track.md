@@ -2,8 +2,9 @@
 
 **Lab**: Uchida Lab, Harvard University (PI: Prof. Naoshige Uchida)
 **Point person**: Hannah Phillips
-**Dataset**: SFARI ARC — Lone condition (M4, M5, M7 × 2 days = 6 sessions)
+**Dataset**: SFARI ARC, subjects M4, M5, M7 × 2 days × Lone and Social conditions = 12 sessions
 **Repo**: <https://github.com/catalystneuro/uchida-lab-to-nwb>
+**Last updated**: 2026-11-09
 
 ---
 
@@ -11,10 +12,10 @@
 
 - [x] Repo scaffolded
 - [x] Data inspection complete (`conversion_notes.md`)
-- [x] Metadata YAML drafted (`phillips_2025_metadata.yaml`, `subject_metadata.yaml`, `fiber_photometry.yaml`)
-- [x] Metadata request sent to lab (`hannah_metadata_request.md`)
-- [x] Reply received from Hannah (2026-05-06) — most hardware metadata resolved
-- [ ] Paper fetched and methods reviewed — no manuscript yet
+- [x] Metadata YAML drafted (`general_metadata.yaml`, `fiber_photometry.yaml`); per-subject metadata read from `Subject metadata.xlsx`
+- [x] Metadata request sent to lab, reply received from Hannah (2026-05-06)
+- [x] Midway review meeting with the lab (2026-09-15)
+- [ ] Paper fetched and methods reviewed: no manuscript yet
 
 ---
 
@@ -22,77 +23,82 @@
 
 ### Fiber Photometry — Raw (Doric BBC300)
 
-- [x] Interface implemented — uses `DoricFiberPhotometryInterface` from neuroconv (PR #2 on `reviews_part_1`)
-- [ ] `fiber_photometry.yaml` updated with confirmed values (wavelengths, brain regions, indicator, coordinates)
-- [ ] **Investigate ROI03**: Doric file has 3 ROIs per excitation but Hannah reports only 2 implants (NAc + TS)
-- [ ] Tests pass — no test suite yet
-- [ ] nwbinspector: zero CRITICAL
+- [x] Interface: `DoricFiberPhotometryInterface` from neuroconv, one instance per excitation channel
+- [x] `fiber_photometry.yaml` filled with confirmed values (wavelengths, brain regions, indicators, coordinates, per-subject implant hemisphere)
+- [ ] **ROI03**: the Doric file has 3 ROIs per excitation, but Hannah reports only 2 implants (NAc + TS). ROI03 is not converted; its purpose is still unknown
+- [ ] Tests
 
 ### Fiber Photometry — Interpolated Raw (MATLAB)
 
-- [x] Interface implemented — `DoricProcessedPhotometryInterface` in [src/uchida_lab_to_nwb/phillips_2025/interfaces/doric_processed_photometry_interface.py](src/uchida_lab_to_nwb/phillips_2025/interfaces/doric_processed_photometry_interface.py)
-- [ ] **Interface needs revision**: current `.mat` files contain old test artifacts (dF/F, baselines, etc.); Hannah will replace with clean interpolated-only files — update interface once received
-- [ ] Tests pass — no test suite yet
-- [ ] nwbinspector: zero CRITICAL
+- [x] Interface: `ProcessedFiberPhotometryInterface` in [interfaces/processed_fiber_photometry_interface.py](../interfaces/processed_fiber_photometry_interface.py)
+- [x] Real per-sample timestamps from Doric trigger pulses (9 of 12 sessions); nominal camera-rate fallback for the other 3
+- [ ] Tests
 
-### Behavior — DANNCE 3D Pose Estimation
+### Fiber Photometry — dF/F (`processed_dff.mat`)
 
-- [x] Interface implemented — uses `SDANNCEInterface` from neuroconv (`add-dannce-interface` branch, pending merge)
-- [x] Lone session array shape confirmed: 90000 × 1 × 3 × 23 (`animal_index=0` correct)
-- [ ] Social session support: array will be 90000 × 2 × 3 × 23 — both animals to be written
-- [ ] Tests pass — no test suite yet
-- [ ] nwbinspector: zero CRITICAL
+- [x] Interface `DffFiberPhotometryInterface` ready but disabled, as agreed at the 2026-09-15 midway meeting, until the lab confirms what `dff_resG`/`dff_resG2` represent
 
-### Behavior — Multi-Camera Video (6 cameras, H.264 MP4)
+### Behavior — DANNCE 3D Pose Estimation + Multi-Camera Video
 
-- [x] Interface implemented — uses `ExternalVideoInterface` × 6 in `Phillips2025NWBConverter`
-- [ ] Tests pass — no test suite yet
+- [x] `DANNCEConverter` from neuroconv main: pose, 6 external videos, calibrated camera devices
+- [x] Lone sessions: `pred` shape `(90000, 1, 3, 23)`, `animal_index=0`
+- [x] **Social sessions**: `pred` shape `(90000, 2, 3, 23)`. Index 0 = implanted subject, index 1 = partner (confirmed by Hannah from pose overlays, 2026-11-03). One file per session; the partner's pose is a second container (`PoseEstimationDANNCEPartner`, slot `DANNCEPartner`) sharing the subject's videos and cameras, treated as an external stimulus with no subject metadata
+- [ ] Social day_1/M7: calibration only for Camera3, 5, 6 (no `calibration.json`); the other 3 are written as uncalibrated devices. Ask the lab whether the files exist
+- [x] Skeleton edges and HERD terms for the 23 rat23 nodes
+- [ ] Per-camera `PoseEstimation` descriptions: set in metadata, not yet written by neuroconv (upstream fix needed)
+- [ ] Tests
 
 ### Sync — pCampi TTL (LabVIEW / NIDAQ)
 
-- [x] Interface implemented — `PCampiSyncInterface` in [src/uchida_lab_to_nwb/phillips_2025/interfaces/pcampi_sync_interface.py](src/uchida_lab_to_nwb/phillips_2025/interfaces/pcampi_sync_interface.py)
-- [x] Channel assignment confirmed by Hannah: Ch0 = campy_trigger, Ch1 = rbfmc_frames
-- [ ] Tests pass — no test suite yet
+- [x] Interface: `PCampiSyncInterface` in [interfaces/pcampi_sync_interface.py](../interfaces/pcampi_sync_interface.py)
+- [x] Channels confirmed by Hannah: Ch0 = `campy_trigger`, Ch1 = `rbfmc_frames` (all zero, skipped)
+- [ ] Tests
 
 ### Temporal Synchronization
 
-- [x] Sync plan documented in `conversion_notes.md` (see "Temporal Alignment" section)
-- [x] `temporally_align_data_interfaces()` implemented in [src/uchida_lab_to_nwb/phillips_2025/nwbconverter.py](src/uchida_lab_to_nwb/phillips_2025/nwbconverter.py) — pCampi `campy_trigger` matched against Doric `DigitalCh1` (not `rbfmc_frames`, which turned out to be dead/all-zero) for a single scalar offset applied via `set_aligned_starting_time()`; edge detection uses neuroconv's `get_falling_frames_from_ttl`/`get_rising_frames_from_ttl` (`neuroconv.tools.signal_processing`)
-- [ ] Frame-count mismatch (90,074 `campy_trigger` pulses vs. 90,000 saved frames) unresolved — not blocking (see conversion_notes.md TODOs)
+- [x] `temporally_align_data_interfaces()` in [nwbconverter.py](../nwbconverter.py): pCampi `campy_trigger` matched against Doric `DigitalCh1` for a single offset
+- [ ] Frame-count mismatch (about 74 more `campy_trigger` pulses than saved frames, in every session): not blocking, unaddressed
+
+### Metadata and Ontologies
+
+- [x] HERD: species, strain, experimenter (ORCID), institution (ROR), anatomical structures (<https://github.com/catalystneuro/uchida-lab-to-nwb/pull/6>)
+- [x] Epoch + Spyglass task table (`TaskEpochInterface`), annotated with HED (schema 8.5.0); `camera_id` empty
+- [ ] Spyglass ingestion test of epochs and tasks
+- [x] Tutorial: sections on the social partner and on task/epoch/HED
 
 ---
 
 ## Post-Conversion
 
-- [x] Local example notebook (`notebooks/phillips_2025_demo.ipynb`)
-- [ ] DANDI upload complete — Dandiset ID: `XXXXXX` (embargo mode planned)
+- [x] Example notebook: [notebooks/dandi_001935_tutorial.ipynb](../../../../notebooks/dandi_001935_tutorial.ipynb)
+- [x] Re-convert all 12 sessions with the current code (2026-11-09, commit `1ff5ff4`, neuroconv `8152f94`; see conversion_notes.md, Full conversion runs)
+- [x] NWB Inspector on the full files: zero CRITICAL, zero violations (2026-11-09)
+- [x] Inspection script, `inspection.py`: per-file reports and `inspection_summary.csv` (2026-11-09)
+- [x] Upload script, `upload_to_DANDI.py`: organize, compare with the draft, validate, upload (2026-11-09)
+- [ ] DANDI upload to Dandiset 001935 (embargoed). The draft holds an earlier test upload of M4 day-1 (2 NWB files, 9 videos); remove its superseded videos after uploading
+- [ ] Final meeting and handover to the lab
 - [ ] Example notebook PR submitted to `dandi/example-notebooks`
 
 ---
 
 ## Metadata Status
 
-- [x] `hannah_metadata_request.md` sent to lab
-- [x] Reply received 2026-05-06
-- [x] pCampi channel assignment confirmed ✓
-- [x] Fiber photometry hardware confirmed: EXC1=568 nm (tdTomato), EXC2=473 nm (GRABDA3m), 50 µW each, BBC300 at 0 dB gain
-- [x] Fiber implant coordinates confirmed: ROI01=NAc (AP±1.15, ML±2.2, DV−6.3), ROI02=TS (AP±3.15, ML±5.2, DV−4.5)
-- [x] Indicator identity confirmed: GRABDA3m (AAV9-hSyn-DA3m, WZ Biosciences) + tdTomato (AAV5-CAG-tdTomato, Addgene), co-injected
-- [x] DANNCE array shapes confirmed: Lone=90000×1×3×23, Social=90000×2×3×23
-- [x] Dataset scope confirmed: M4, M5, M7 only (M1–M3, M6 not in this dataset)
-- [ ] Subject metadata (sex, DOB, weight, strain, surgery dates) — from attached `Subject metadata.xlsx`, not yet imported
-- [ ] `subject_metadata.yaml` updated with real values
-- [ ] `fiber_photometry.yaml` updated with confirmed values
-- [ ] DANDI ORCIDs / contributors — defer to manuscript stage
-- [ ] SFARI grant number + license (CC-BY-4.0) — ask Nao Uchida
-- [ ] Publication DOI — no manuscript yet
+- [x] pCampi channel assignment confirmed
+- [x] Fiber photometry hardware confirmed: EXC1 = 568 nm (tdTomato), EXC2 = 473 nm (GRABDA3m), 50 µW each, BBC300 at 0 dB gain
+- [x] Fiber implant coordinates confirmed: ROI01 = NAc (AP±1.15, ML±2.2, DV−6.3), ROI02 = TS (AP±3.15, ML±5.2, DV−4.5)
+- [x] Indicators confirmed: GRABDA3m (AAV9-hSyn-DA3m, WZ Biosciences) + tdTomato (AAV5-CAG-tdTomato, Addgene), co-injected
+- [x] Dataset scope confirmed: M4, M5, M7 only
+- [x] Subject metadata (sex, DOB, weight, strain, genotype) read from `Subject metadata.xlsx`
+- [x] Experimenter ORCID confirmed
+- [x] Social partner rat: treated as an external stimulus, no subject metadata (decided 2026-11-03)
+- [ ] SFARI grant number + license (CC-BY-4.0): ask Nao Uchida
+- [ ] DANDI contributors and publication DOI: defer to manuscript stage
 
 ---
 
 ## Open Dependencies
 
-- [ ] `SDANNCEInterface` merged to neuroconv main (`add-dannce-interface` branch pending) — required to pin neuroconv release in `pyproject.toml`
-- [ ] Clean `interpolated_campy_and_doric_data.mat` files from Hannah (old versions have test artifacts)
-- [ ] Social data upload from Hannah (planned week of 2026-05-06)
-- [ ] Clarification on ROI03 in Doric file (Hannah only has 2 implants)
-- [ ] Write test suite (no tests exist yet)
+- [ ] neuroconv release including the HERD and DANNCE changes, to replace the pin to `main` in `pyproject.toml`
+- [ ] neuroconv fix forwarding per-camera `PoseEstimation` metadata (description, etc.)
+- [ ] Lab answer on ROI03
+- [ ] Test suite (none yet)

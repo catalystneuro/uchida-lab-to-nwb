@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 from neuroconv import NWBConverter
 from neuroconv.converters import DANNCEConverter
-from neuroconv.datainterfaces import DoricFiberPhotometryInterface
+from neuroconv.datainterfaces import DANNCEInterface, DoricFiberPhotometryInterface
 from neuroconv.tools.signal_processing import (
     get_falling_frames_from_ttl,
     get_rising_frames_from_ttl,
@@ -15,6 +15,7 @@ from uchida_lab_to_nwb.phillips_2025.interfaces import (
     DffFiberPhotometryInterface,
     PCampiSyncInterface,
     ProcessedFiberPhotometryInterface,
+    TaskEpochInterface,
 )
 
 # Interfaces whose native timestamps are on the Doric BBC300 clock (raw fiber photometry) or a
@@ -94,10 +95,10 @@ class Phillips2025NWBConverter(NWBConverter):
       via a 2-element ``stream_names`` list), sharing one ``FiberPhotometryTable``. Keys use
       functional roles rather than raw hardware channel names: EXC1 -> control (tdTomato),
       EXC2 -> dopamine_signal (GRABDA3m); ROI01 -> NAc, ROI02 -> TS.
-    - Processed{Control,DopamineSignal}: lab-processed fiber photometry, one
+    - InterpolatedFP{ControlSignal,DopamineSignal}: lab-processed fiber photometry, one
       ``ProcessedFiberPhotometryInterface`` per channel (interpolated_campy_and_doric.mat).
-      Raw ROI fluorescence (not dF/F); written to processing/ophys, reusing the
-      FiberPhotometryTable created by the raw Doric interfaces.
+      Raw ROI fluorescence (not dF/F) resampled to the camera triggers; written to
+      processing/ophys, reusing the FiberPhotometryTable created by the raw Doric interfaces.
     - DffDopamineSignal: lab-computed dF/F (processed_dff.mat), one ``DffFiberPhotometryInterface``.
       AD HOC / OFF BY DEFAULT -- see that interface's module docstring. Registered here, but
       ``convert_session.py`` never adds it to ``source_data`` -- the code that would (and the
@@ -111,6 +112,12 @@ class Phillips2025NWBConverter(NWBConverter):
     - DANNCE: 3D pose estimation (save_data_AVG0.mat) combined with the 6-camera behavioral
       video (.mp4 per camera, external link) via ``DANNCEConverter``, which links each camera's
       source video and calibrated Device (from calibration/calibration.json) automatically.
+    - DANNCEPartner: social sessions only. The partner rat's 3D pose (sDANNCE animal index 1; the
+      implanted subject is index 0), as a second ``DANNCEInterface`` that reuses the camera Devices
+      and videos written by ``DANNCE``, so it must come after ``DANNCE``.
+    - TaskEpoch: one epoch spanning the pCampi recording and one row in
+      ``processing/tasks/task_table``, in the layout Spyglass reads, annotated with HED
+      (``TaskEpochInterface``, ``interfaces/task_epoch_interface.py``).
 
     Temporal alignment: ``campy_trigger`` (pCampi/h5) and ``DigitalCh1`` (Doric/.doric, "DIO BNC |
     Ch.1") carry the same physical TTL pulse train on two independent 1 kHz clocks (see
@@ -150,14 +157,15 @@ class Phillips2025NWBConverter(NWBConverter):
 
     # DANNCE must run first: NWBConverter.add_to_nwbfile() iterates data_interface_objects in this
     # dict's order, and DoricFiberPhotometryInterface.add_to_nwbfile() calls neuroconv's
-    # add_fiber_photometry_devices(), which (as of neuroconv#<ISSUE_NUMBER>) blindly creates a plain
-    # Device for *every* entry in the shared metadata["Devices"] registry -- including DANNCE's
+    # add_fiber_photometry_devices(), which (in the pinned neuroconv main; not reported upstream yet)
+    # creates a plain Device for *every* entry in the shared metadata["Devices"] registry -- including DANNCE's
     # Camera1..6 -- not just the fiber-photometry-owned ones. Device creation is idempotent on name
     # (an existing device is returned unchanged), so running DANNCE first lets it create the real
     # ndx_pose.CalibratedCamera Devices before add_fiber_photometry_devices() gets a chance to shadow
     # them with plain Devices. Remove this ordering requirement once the upstream bug is fixed.
     data_interface_classes = dict(
         DANNCE=DANNCEConverter,
+        DANNCEPartner=DANNCEInterface,
         DoricControl=DoricFiberPhotometryInterface,
         DoricDopamineSignal=DoricFiberPhotometryInterface,
         InterpolatedFPControlSignal=ProcessedFiberPhotometryInterface,
@@ -166,9 +174,16 @@ class Phillips2025NWBConverter(NWBConverter):
         DffDopamineSignal=DffFiberPhotometryInterface,
         PCampiSyncCampyTrigger=PCampiSyncInterface,
         PCampiSyncRbfmcFrames=PCampiSyncInterface,
+        TaskEpoch=TaskEpochInterface,
     )
 
     def temporally_align_data_interfaces(self, metadata: dict | None = None, conversion_options: dict | None = None):
+        """Align the photometry and DANNCE interfaces to the pCampi clock (see the class docstring).
+
+        Does nothing if the session has no pCampi ``campy_trigger`` or no raw Doric file. Uses
+        ``set_aligned_starting_time``, ``get_timestamps`` and ``alignment``, which neuroconv
+        deprecates; port to ``interface.temporal_alignment`` before moving the neuroconv pin.
+        """
         campy_trigger = self.data_interface_objects.get("PCampiSyncCampyTrigger")
         doric_control = self.data_interface_objects.get("DoricControl")
         if campy_trigger is None or doric_control is None:
@@ -214,3 +229,7 @@ class Phillips2025NWBConverter(NWBConverter):
             first_real_rising_edge = drop_spurious_leading_edges(pcampi_rising_edge_times)[0]
             for sub_interface in dannce.data_interface_objects.values():
                 sub_interface.set_aligned_starting_time(first_real_rising_edge)
+            # The partner's pose comes from the same sDANNCE file, so it shares the subject's clock.
+            dannce_partner = self.data_interface_objects.get("DANNCEPartner")
+            if dannce_partner is not None:
+                dannce_partner.set_aligned_starting_time(first_real_rising_edge)
