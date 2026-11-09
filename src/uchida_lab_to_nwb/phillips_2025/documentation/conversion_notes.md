@@ -364,6 +364,13 @@ Items that need input from the lab (Hannah Phillips) before they can be resolved
   across sessions. The interface stays disabled until then.
 - **SFARI grant number + CC-BY-4.0 license.** Ask Nao Uchida directly.
 - **Contributors / publication DOI.** Defer to manuscript stage.
+- **When the partner is in the arena.** In social day_1/M4 the partner track nearly matches the
+  subject's (mean keypoint distance under 10 mm) for frames 0 to 29,804 and 78,126 to the end,
+  about 596 s to 1,563 s of partner presence in a 30-minute session (checked 2026-11-09 on the full
+  file). Video frames 1,000 and 85,000 show one rat, frame 45,000 shows two. So sDANNCE reports
+  the subject twice when the partner is absent. Ask whether the partner is always added partway
+  through, and whether the lab has the insertion and removal times. If so, they could be written
+  as an intervals table, and the partner pose outside that window marked as not tracked.
 
 ### Storing the social partner rat
 
