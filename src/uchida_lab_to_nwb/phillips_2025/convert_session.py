@@ -1,7 +1,11 @@
-"""Convert a single Uchida Lab (Phillips 2025) session to NWB."""
+"""Convert a single Uchida Lab (Phillips 2025) session to NWB.
+
+One subject-session directory, <data folder>/<Lone|Social>_data/day_<N>/M<id>/, gives one NWB file,
+<output folder>/sub-M<id>/sub-M<id>_ses-day-<N>-<lone|social>.nwb. Run this file to convert one session; the paths
+are set in the ``if __name__ == "__main__":`` block at the bottom.
+"""
 
 import csv
-import re
 from datetime import date, datetime, time
 from pathlib import Path
 from typing import Union
@@ -28,9 +32,6 @@ from uchida_lab_to_nwb.phillips_2025.utils.subject_metadata import (
 
 # Harvard is in the Eastern timezone
 _TIMEZONE = ZoneInfo("America/New_York")
-
-# pCampi filename pattern: YYMMDD_HHMMSS_M{id}.h5
-_PCAMPI_PATTERN = re.compile(r"(\d{6}_\d{6})_(M\d+)\.h5")
 
 # Maps pCampi digital channel names (as read from the .h5 file) to the interface slot each
 # is registered under in Phillips2025NWBConverter.data_interface_classes.
@@ -92,29 +93,39 @@ def session_to_nwb(
 ) -> None:
     """Convert one subject-session directory to an NWB file.
 
+    The session ID is built from the directory path: ``Social_data/day_1/M4`` gives ``day-1-social``,
+    and the file is written to ``<output_dir_path>/sub-M4/sub-M4_ses-day-1-social.nwb``.
+
     Parameters
     ----------
     session_dir_path : str or Path
-        Path to a single subject-session directory, e.g.
-        ``Lone_data/day_1/M4``.
-        Expected contents:
-        - ``YYYYMMDD_HHMMSS_M{id}.h5``    — pCampi sync file
-        - ``BBC300_Acq_*.doric``           — raw Doric photometry
-        - ``interpolated_campy_and_doric.mat``      — processed (interpolated) fiber photometry
-        - ``processed_dff.mat``            — lab-computed dF/F; NOT read by default, see the
-          commented-out "DffDopamineSignal" block below
-        - ``DANNCE/save_data_AVG0.mat``    — DANNCE pose output
-        - ``calibration/calibration.json`` — 6-camera calibration (+ hires_camN_params.mat)
-        - ``videos/Camera{1..6}/0.mp4``    — per-camera videos
-        - ``videos/Camera1/metadata.csv``  — camera acquisition metadata (frameRate, etc.)
+        Path to a single subject-session directory, e.g. ``Lone_data/day_1/M4``. Expected contents:
+
+        - ``YYMMDD_HHMMSS_M{id}.h5``: pCampi sync file (required)
+        - ``BBC300_Acq_*.doric``: raw Doric photometry (required)
+        - ``interpolated_campy_and_doric.mat``: processed (interpolated) fiber photometry
+        - ``processed_dff.mat``: lab-computed dF/F; not read, see the commented-out
+          "DffDopamineSignal" block below
+        - ``DANNCE/save_data_AVG0.mat`` (lone) or ``sDANNCE/predict05/save_data_AVG0.mat``
+          (social, both rats): DANNCE pose output
+        - ``calibration/calibration.json`` and ``hires_camN_params.mat``: camera calibration
+        - ``videos/Camera{1..6}/0.mp4`` and ``frametimes.npy``: per-camera videos and frame times
+        - ``videos/Camera1/metadata.csv``: camera acquisition metadata (frameRate)
+
+        The processed photometry and DANNCE interfaces are added only when their files and the
+        ``videos`` folder exist.
     output_dir_path : str or Path
-        Directory where the NWB file will be written.
+        Directory where the subject folder and the NWB file are written. With ``stub_test=True``
+        the file goes to ``<output_dir_path>/nwb_stub/`` instead.
     subject_metadata : dict
-        Per-subject NWB Subject fields (species, sex, age, strain, etc.).
+        NWB Subject fields, from ``utils.subject_metadata.get_subject_metadata()``. Must hold
+        ``subject_id``.
     stub_test : bool
-        If True, write a small stub file for quick testing.
+        If True, write a small stub file for quick testing (photometry, sync and pose truncated;
+        the videos are linked in full).
     overwrite : bool
-        If True, overwrite an existing NWB file at the output path.
+        If True, overwrite an existing NWB file at the output path. If False, an existing file
+        is skipped.
     verbose : bool
         Pass-through to converter interfaces.
 
@@ -123,8 +134,8 @@ def session_to_nwb(
     ``NWBFile.session_start_time`` is set from the pCampi filename (``PCampiSyncInterface`` is the
     only interface that sets it). ``Phillips2025NWBConverter.temporally_align_data_interfaces()``
     (see ``nwbconverter.py``) aligns the raw and processed Doric fiber photometry interfaces, and
-    the DANNCE pose + video interfaces, onto that same pCampi clock -- see conversion_notes.md for
-    the full description and remaining open items.
+    the DANNCE pose + video interfaces, onto that same pCampi clock. See conversion_notes.md,
+    Temporal Alignment.
     """
     session_dir_path = Path(session_dir_path)
     output_dir_path = Path(output_dir_path)

@@ -73,7 +73,10 @@
 - [x] Example notebook: [notebooks/dandi_001935_tutorial.ipynb](../../../../notebooks/dandi_001935_tutorial.ipynb)
 - [x] Re-convert all 12 sessions with the current code (2026-11-09, commit `1ff5ff4`, neuroconv `8152f94`; see conversion_notes.md, Full conversion runs)
 - [x] NWB Inspector on the full files: zero CRITICAL, zero violations (2026-11-09)
-- [ ] DANDI upload to Dandiset 001935 (embargo mode planned)
+- [x] Inspection script, `inspection.py`: per-file reports and `inspection_summary.csv` (2026-11-09)
+- [x] Upload script, `upload_to_DANDI.py`: organize, compare with the draft, validate, upload (2026-11-09)
+- [ ] DANDI upload to Dandiset 001935 (embargoed). The draft holds an earlier test upload of M4 day-1 (2 NWB files, 9 videos); remove its superseded videos after uploading
+- [ ] Final meeting and handover to the lab
 - [ ] Example notebook PR submitted to `dandi/example-notebooks`
 
 ---
