@@ -55,6 +55,9 @@ PER_FILE_TABLES = (
     sgc.SensorData,
     sgc.ExternalResources,
     sgc.ExternalResources.Reference,
+    sgc.HedMetadata,
+    sgc.HedAnnotation,
+    sgc.HedAnnotation.Row,
 )
 SHARED_TABLES = (
     sgc.OntologyTerm,
