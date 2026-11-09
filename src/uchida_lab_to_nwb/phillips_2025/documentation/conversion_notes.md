@@ -458,8 +458,6 @@ Internal code/repo work, not blocked on the lab:
 - Test Spyglass ingestion of `epochs` and `processing/tasks` on a converted file.
 - Draft a feature request to Spyglass for an optional HED field on `Task`, filled from a
   `HedTags` column in the tasks table (for review before opening).
-- Update the tutorial (`notebooks/dandi_001935_tutorial.ipynb`) with a section on the social
-  partner (`PoseEstimationDANNCEPartner`) and a section on the task, epoch and HED annotations.
 - Add a test suite.
 - Replace the neuroconv `main` pin with a release, once one includes the HERD and DANNCE changes.
 - Get the neuroconv fix that writes per-camera `PoseEstimation` descriptions.
@@ -469,4 +467,5 @@ Internal code/repo work, not blocked on the lab:
   `dandi/example-notebooks`.
 
 Done: HERD ontology annotation (see Metadata → Ontology annotation); task, epoch and HED
-annotation (see Metadata → Task, epoch and HED).
+annotation (see Metadata → Task, epoch and HED). Tutorial sections on the social partner (4e) and on
+task, epoch and HED (2026-11-09).
