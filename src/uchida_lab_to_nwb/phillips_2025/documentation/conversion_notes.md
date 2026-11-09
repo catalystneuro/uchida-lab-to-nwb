@@ -252,13 +252,20 @@ Each file has one epoch and one task, in the layout Spyglass reads (checked agai
   Spyglass names the `IntervalList` entry after the first tag and matches it to epoch 1.
 - `processing/tasks/task_table`: `task_name` (`lone` / `social`), `task_description`,
   `task_environment` (`arena`), `camera_id`, `task_epochs` (`[1]`) and `HED`.
-- `camera_id` is an empty string, which Spyglass reads as no cameras (`list(row.camera_id)`).
-  Spyglass resolves camera IDs against ndx-franklab-novela `CameraDevice`s named
-  `camera_device N` and raises on unknown IDs; the DANNCE cameras are `ndx_pose.CalibratedCamera`.
-  `TaskEpoch.camera_name` is nullable, so the task still ingests. An empty ragged integer column
-  would be the usual form, but NWB Inspector 0.7.1 (3 checks raise `IndexError`) and ndx-hed
-  0.3.0's `HedNWBValidator` (`get_bids_dataframe` compares each cell to `""`) both crash on a
-  zero-length column, so the string form is used.
+- `camera_id` is a ragged integer column listing the 6 cameras, `[1, 2, 3, 4, 5, 6]`: the
+  trailing digits of the camera Device names `Camera1`..`Camera6`, taken from the session's
+  videos folder. Spyglass resolves each ID against its `CameraDevice` entries and raises on an
+  unknown ID. Spyglass `master` only knows ndx-franklab-novela `CameraDevice`s named
+  `camera_device N`; the multi-camera branch (`ndx-pose-multicamera`, in the CatalystNeuro
+  `uchida-integration` Spyglass branch) also maps `CalibratedCamera` names such as `Camera1` -> 1.
+- A session without videos writes `camera_id` as an empty string, which Spyglass reads as no
+  cameras (`list(row.camera_id)`). An empty ragged integer column would be the usual form, but
+  NWB Inspector 0.7.1 (3 checks raise `IndexError`) and ndx-hed 0.3.0's `HedNWBValidator`
+  (`get_bids_dataframe` compares each cell to `""`) both crash on a zero-length column.
+- That same `get_bids_dataframe` comparison also fails on a cell holding more than one value
+  (`ValueError: The truth value of an array ... is ambiguous`), so `HedNWBValidator.validate_file`
+  raises on the 6-camera `camera_id` cell (checked on stubs of M4 day_1 lone and M7 day_1 social,
+  2026-11-09). NWB Inspector reports nothing on the column.
 - HED: `HedLabMetaData` holds schema 8.5.0 and two lab definitions, `Lone-condition` and
   `Social-condition`; the task row refers to one with `Def/...`. The implanted rat is the
   `Experiment-participant`, the partner an `Experiment-actor`. Spyglass's `Task` table has no HED
@@ -269,7 +276,7 @@ Checked on stub files for M4 day_1 (lone and social), 2026-11-09:
 - NWB Inspector: only suggestions on the new objects (single-row `epochs` and `task_table`,
   non-standard module name `tasks`, which is the name Spyglass looks for).
 - Reading `task_table` the way Spyglass does (`to_dataframe().itertuples()`) gives
-  `camera_id -> []` and `task_epochs -> [1]`.
+  `camera_id -> []` and `task_epochs -> [1]` (before `camera_id` listed the cameras).
 - Not yet tested with a Spyglass ingestion.
 
 ### Ontology annotation (HERD)
@@ -490,8 +497,10 @@ Internal code/repo work, not blocked on the lab:
   `calibration.json`. Those 3 are written as `CalibratedCamera`, the other 3 as plain `Device`
   (checked on a stub, 2026-11-03). Ask the lab whether the missing calibration files exist.
 - Optionally report upstream, after asking the team: ndx-hed `HedNWBValidator` and NWB Inspector
-  crash on a table with an empty ragged column. Worked around here (see Metadata → Task, epoch
-  and HED); once fixed, `camera_id` can become an empty ragged integer column.
+  crash on a table with an empty ragged column, and `HedNWBValidator` also on a ragged cell with
+  more than one value (`camera_id`). Worked around here for sessions without videos
+  (see Metadata → Task, epoch and HED); once fixed, their `camera_id` can become an empty ragged
+  integer column.
 - Test Spyglass ingestion of `epochs` and `processing/tasks` on a converted file.
 - Draft a feature request to Spyglass for an optional HED field on `Task`, filled from a
   `HedTags` column in the tasks table (for review before opening).
