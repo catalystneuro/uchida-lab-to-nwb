@@ -1,5 +1,7 @@
 """Interface writing the session's epoch and task, in the layout Spyglass reads, annotated with HED."""
 
+import re
+
 import h5py
 import numpy as np
 from hdmf.common import DynamicTable, VectorData, VectorIndex
@@ -28,9 +30,10 @@ class TaskEpochInterface(BaseDataInterface):
       ``"01_<task_name>"``. Spyglass names the interval after the first tag and matches it to the
       task's epoch number.
     - ``processing["tasks"]["task_table"]``: one row with ``task_name``, ``task_description``,
-      ``task_environment``, ``camera_id`` and ``task_epochs``. ``camera_id`` is an empty string, which
-      Spyglass reads as no cameras: it resolves camera IDs against ndx-franklab-novela
-      ``CameraDevice``s, and the DANNCE cameras are ``ndx_pose.CalibratedCamera`` devices.
+      ``task_environment``, ``camera_id`` and ``task_epochs``. ``camera_id`` lists the integer IDs of
+      the cameras that recorded the task, taken from the trailing digits of each camera Device name
+      (``"Camera1"`` -> 1), which is how Spyglass maps the IDs back to its ``CameraDevice`` entries.
+      Without cameras it holds an empty string, which Spyglass reads as no cameras.
 
     The task row also carries a ``HED`` column (ndx-hed ``HedTags``) holding a ``Def/`` reference
     to a lab definition. The definitions and the HED schema version are written once to
@@ -40,7 +43,13 @@ class TaskEpochInterface(BaseDataInterface):
 
     keywords = ["task", "epoch", "HED"]
 
-    def __init__(self, pcampi_file_path: FilePath, task_metadata_key: str, verbose: bool = False):
+    def __init__(
+        self,
+        pcampi_file_path: FilePath,
+        task_metadata_key: str,
+        camera_names: list[str] | None = None,
+        verbose: bool = False,
+    ):
         """Initialize the interface.
 
         Parameters
@@ -49,11 +58,16 @@ class TaskEpochInterface(BaseDataInterface):
             Path to the pCampi ``.h5`` file. Its length sets the epoch's stop time.
         task_metadata_key : str
             Key of this session's task under ``metadata["Tasks"]`` (``"lone"`` or ``"social"``).
+        camera_names : list of str, optional
+            Names of the camera Devices that recorded the task (``"Camera1"`` ... ``"Camera6"``). Each
+            must end in its integer camera ID.
         verbose : bool, default: False
             Whether to print status messages.
         """
         self.verbose = verbose
-        super().__init__(pcampi_file_path=pcampi_file_path, task_metadata_key=task_metadata_key)
+        super().__init__(
+            pcampi_file_path=pcampi_file_path, task_metadata_key=task_metadata_key, camera_names=camera_names
+        )
 
     def get_metadata_schema(self) -> dict:
         metadata_schema = super().get_metadata_schema()
@@ -105,6 +119,23 @@ class TaskEpochInterface(BaseDataInterface):
             description="Epoch numbers in which the task ran.",
             data=np.array([_EPOCH_NUMBER], dtype=np.int64),
         )
+
+        camera_names = self.source_data["camera_names"] or []
+        if camera_names:
+            camera_ids = [int(re.search(r"(\d+)$", name).group(1)) for name in camera_names]
+            camera_id = VectorData(
+                name="camera_id",
+                description="IDs of the cameras that recorded the task: the trailing digits of each camera Device name.",
+                data=np.array(camera_ids, dtype=np.int64),
+            )
+            camera_columns = [camera_id, VectorIndex(name="camera_id_index", data=[len(camera_ids)], target=camera_id)]
+        else:
+            # Spyglass reads camera IDs as list(row.camera_id), so "" means no cameras. An empty ragged
+            # integer column would say the same, but NWB Inspector 0.7.1 and the ndx-hed 0.3.0 validator
+            # both crash on a zero-length column.
+            camera_columns = [
+                VectorData(name="camera_id", description="IDs of the cameras that recorded the task: none.", data=[""])
+            ]
         task_table = DynamicTable(
             name="task_table",
             description="Behavioral task of this session, in the layout Spyglass reads into Task and TaskEpoch.",
@@ -120,17 +151,7 @@ class TaskEpochInterface(BaseDataInterface):
                     description="Environment the animal was in.",
                     data=[task_metadata["task_environment"]],
                 ),
-                # Spyglass reads camera IDs as list(row.camera_id), so "" means no cameras. An empty ragged
-                # integer column would say the same, but NWB Inspector 0.7.1 and the ndx-hed 0.3.0 validator
-                # both crash on a zero-length column.
-                VectorData(
-                    name="camera_id",
-                    description=(
-                        "IDs of the ndx-franklab-novela CameraDevices used in this task. Empty: the behavior cameras "
-                        "are ndx_pose CalibratedCamera devices, linked from the pose estimation containers."
-                    ),
-                    data=[""],
-                ),
+                *camera_columns,
                 task_epochs,
                 VectorIndex(name="task_epochs_index", data=[1], target=task_epochs),
                 HedTags(name="HED", description="HED annotation of the task.", data=[task_metadata["hed"]]),

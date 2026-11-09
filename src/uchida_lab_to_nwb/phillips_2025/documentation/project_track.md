@@ -62,7 +62,7 @@
 ### Metadata and Ontologies
 
 - [x] HERD: species, strain, experimenter (ORCID), institution (ROR), anatomical structures (<https://github.com/catalystneuro/uchida-lab-to-nwb/pull/6>)
-- [x] Epoch + Spyglass task table (`TaskEpochInterface`), annotated with HED (schema 8.5.0); `camera_id` empty
+- [x] Epoch + Spyglass task table (`TaskEpochInterface`), annotated with HED (schema 8.5.0); `camera_id` lists the 6 cameras
 - [ ] Spyglass ingestion test of epochs and tasks
 - [x] Tutorial: sections on the social partner and on task/epoch/HED
 
