@@ -99,15 +99,16 @@ Repository (`src/uchida_lab_to_nwb/phillips_2025/`):
 
 ```text
 phillips_2025/
-├── nwbconverter.py              # Phillips2025NWBConverter — 9 interface slots
+├── nwbconverter.py              # Phillips2025NWBConverter — 10 interface slots
 ├── convert_session.py           # session_to_nwb() — one subject-session directory, one NWB file
 ├── convert_all_sessions.py      # discovers sessions, resolves subject metadata, batch-converts
-├── general_metadata.yaml        # static NWBFile metadata
+├── general_metadata.yaml        # static NWBFile metadata, Tasks (per condition), HED schema + definitions
 ├── fiber_photometry.yaml        # fiber photometry hardware metadata (devices, indicators, table);
 │                                 # ends with a commented-out AD HOC block for DffFiberPhotometryInterface
 ├── interfaces/
 │   ├── pcampi_sync_interface.py                  # PCampiSyncInterface (custom)
 │   ├── processed_fiber_photometry_interface.py   # ProcessedFiberPhotometryInterface (custom)
+│   ├── task_epoch_interface.py                   # TaskEpochInterface (custom): epoch + Spyglass task table + HED
 │   └── dff_fiber_photometry_interface.py         # DffFiberPhotometryInterface (custom, AD HOC — registered but its use in convert_session.py is commented out by default)
 ├── utils/
 │   ├── constants.py              # SDANNCE_LANDMARK_NAMES, SDANNCE_SKELETON_EDGES (rat23)
@@ -185,11 +186,12 @@ Raw Doric fiber photometry (`DoricFiberPhotometryInterface`) and DANNCE pose + v
 | `PCampiSyncInterface` (custom, ×2: `PCampiSyncCampyTrigger`, `PCampiSyncRbfmcFrames`) | 1 `TimeSeries` each (`SyncTTL_campy_trigger`, `SyncTTL_rbfmc_frames`) in `acquisition` | Writes one channel per instance — takes no assumptions about channel names or count; `channel_name` is required at init, and `get_available_channels(file_path)` discovers the channels present in a given `.h5` file. `convert_session.py` instantiates one interface per channel found. Also the **only** interface class that sets `NWBFile.session_start_time` (parsed from the pCampi filename), and its `campy_trigger` instance defines the NWB time base (see Temporal Alignment). `rbfmc_frames` reads as all-zero (`has_meaningful_signal()` returns False) so it is skipped with a warning, not written. |
 | `DANNCEConverter` (neuroconv) | `MultiCameraPoseEstimation` (ndx-pose) in `processing/behavior`, with one per-camera `PoseEstimation` child linking each camera and its video, + 6 `ImageSeries` (external video) + calibrated `Device`s | Reads `DANNCE/save_data_AVG0.mat` (Lone) or `sDANNCE/predict05/save_data_AVG0.mat` (Social), `animal_index=0` in both. There is no sync table, so pose timestamps are `sampleID` / camera frame rate, with the rate from `videos/Camera1/metadata.csv` passed as `sampling_rate`; each video is timed by its own `frametimes.npy` (both then re-anchored to the pCampi clock, see Temporal Alignment). Skeleton (`SDANNCE_LANDMARK_NAMES`/`SDANNCE_SKELETON_EDGES` from `utils/constants.py`) is injected into `Behavior/Pose` metadata at conversion time (`session_to_nwb()`), keyed by `pose_key` ("PoseEstimationDANNCE"). |
 | `DANNCEInterface` (neuroconv, `DANNCEPartner`, social sessions only) | Second `MultiCameraPoseEstimation`, `PoseEstimationDANNCEPartner`, in `processing/behavior` | The partner rat (`animal_index=1`) from the same sDANNCE file. Reuses the camera Devices and videos written by `DANNCE`; its Skeleton is not linked to the file's Subject. |
+| `TaskEpochInterface` (custom, `TaskEpoch`) | 1 row in `epochs`, `processing/tasks/task_table` (1 row), `HedLabMetaData` | Epoch spans the pCampi recording (0 to `n_samples / 1 kHz`; 10 s in stub mode), tagged `01_<task_name>`. Task text and HED come from `general_metadata.yaml` (`Tasks`, keyed by condition, and `HED`). See Metadata → Task, epoch and HED. |
 
-`Phillips2025NWBConverter` (`nwbconverter.py`) registers 9 interface slots:
+`Phillips2025NWBConverter` (`nwbconverter.py`) registers 10 interface slots:
 `DANNCE`, `DANNCEPartner` (social sessions only), `DoricControl`, `DoricDopamineSignal`, `InterpolatedFPControlSignal`,
 `InterpolatedFPDopamineSignal`, `DffDopamineSignal` (disabled by default),
-`PCampiSyncCampyTrigger`, `PCampiSyncRbfmcFrames`. `convert_session.py::session_to_nwb()`
+`PCampiSyncCampyTrigger`, `PCampiSyncRbfmcFrames`, `TaskEpoch`. `convert_session.py::session_to_nwb()`
 discovers the files present in one subject-session directory, conditionally includes the
 processed-photometry and DANNCE interfaces only when their source files exist, discovers the
 pCampi channels present via `PCampiSyncInterface.get_available_channels()` and maps each to its
@@ -202,7 +204,7 @@ metadata via `get_subject_metadata()` (warning + fallback if missing), using
 
 Dependencies (`pyproject.toml`): `neuroconv[dannce]` from `main` (the HERD and DANNCE changes are
 not in a release yet), `pynwb>=4.0.0`, `nwbinspector`, `ndx-pose==0.4.0`,
-`ndx-fiber-photometry==0.2.4`, `ndx-ophys-devices==0.3.1`, `openpyxl`, `python-dateutil`,
+`ndx-fiber-photometry==0.2.4`, `ndx-ophys-devices==0.3.1`, `ndx-hed==0.3.0`, `openpyxl`, `python-dateutil`,
 `opencv-python-headless`.
 
 ## Metadata
@@ -238,6 +240,35 @@ not in a release yet), `pynwb>=4.0.0`, `nwbinspector`, `ndx-pose==0.4.0`,
   field) — `DANNCEInterface.add_to_nwbfile()` looks up the skeleton via
   `PoseEstimations[pose_key]["skeleton_metadata_key"]`, and the metadata merge there is a
   key-for-key `DeepDict.deep_update`, not a name-based match.
+
+### Task, epoch and HED (Spyglass `TaskEpoch`)
+
+Each file has one epoch and one task, in the layout Spyglass reads (checked against
+`spyglass/common/common_task.py` on `master`, 2026-11-09):
+
+- `epochs`: one row, 0 to the end of the pCampi recording, tagged `01_lone` or `01_social`.
+  Spyglass names the `IntervalList` entry after the first tag and matches it to epoch 1.
+- `processing/tasks/task_table`: `task_name` (`lone` / `social`), `task_description`,
+  `task_environment` (`arena`), `camera_id`, `task_epochs` (`[1]`) and `HED`.
+- `camera_id` is an empty string, which Spyglass reads as no cameras (`list(row.camera_id)`).
+  Spyglass resolves camera IDs against ndx-franklab-novela `CameraDevice`s named
+  `camera_device N` and raises on unknown IDs; the DANNCE cameras are `ndx_pose.CalibratedCamera`.
+  `TaskEpoch.camera_name` is nullable, so the task still ingests. An empty ragged integer column
+  would be the usual form, but NWB Inspector 0.7.1 (3 checks raise `IndexError`) and ndx-hed
+  0.3.0's `HedNWBValidator` (`get_bids_dataframe` compares each cell to `""`) both crash on a
+  zero-length column, so the string form is used.
+- HED: `HedLabMetaData` holds schema 8.5.0 and two lab definitions, `Lone-condition` and
+  `Social-condition`; the task row refers to one with `Def/...`. The implanted rat is the
+  `Experiment-participant`, the partner an `Experiment-actor`. Spyglass's `Task` table has no HED
+  field, so Spyglass does not ingest it yet (see TODOs).
+
+Checked on stub files for M4 day_1 (lone and social), 2026-11-09:
+- `HedNWBValidator` reports no issues on either file (and it does flag an invalid tag).
+- NWB Inspector: only suggestions on the new objects (single-row `epochs` and `task_table`,
+  non-standard module name `tasks`, which is the name Spyglass looks for).
+- Reading `task_table` the way Spyglass does (`to_dataframe().itertuples()`) gives
+  `camera_id -> []` and `task_epochs -> [1]`.
+- Not yet tested with a Spyglass ingestion.
 
 ### Ontology annotation (HERD)
 
@@ -402,7 +433,14 @@ Internal code/repo work, not blocked on the lab:
 - Social day_1/M7 has calibration only for Camera3, Camera5 and Camera6, and no
   `calibration.json`. Those 3 are written as `CalibratedCamera`, the other 3 as plain `Device`
   (checked on a stub, 2026-11-03). Ask the lab whether the missing calibration files exist.
-- Add a **HED** table.
+- Optionally report upstream, after asking the team: ndx-hed `HedNWBValidator` and NWB Inspector
+  crash on a table with an empty ragged column. Worked around here (see Metadata → Task, epoch
+  and HED); once fixed, `camera_id` can become an empty ragged integer column.
+- Test Spyglass ingestion of `epochs` and `processing/tasks` on a converted file.
+- Draft a feature request to Spyglass for an optional HED field on `Task`, filled from a
+  `HedTags` column in the tasks table (for review before opening).
+- Update the tutorial (`notebooks/dandi_001935_tutorial.ipynb`) with a section on the social
+  partner (`PoseEstimationDANNCEPartner`) and a section on the task, epoch and HED annotations.
 - Add a test suite.
 - Replace the neuroconv `main` pin with a release, once one includes the HERD and DANNCE changes.
 - Get the neuroconv fix that writes per-camera `PoseEstimation` descriptions.
@@ -410,4 +448,5 @@ Internal code/repo work, not blocked on the lab:
 - Upload to DANDI (Dandiset 001935, embargo mode planned) and submit the example notebook to
   `dandi/example-notebooks`.
 
-Done: HERD ontology annotation (see Metadata → Ontology annotation).
+Done: HERD ontology annotation (see Metadata → Ontology annotation); task, epoch and HED
+annotation (see Metadata → Task, epoch and HED).
