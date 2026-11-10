@@ -36,8 +36,11 @@ Scripts in this folder:
 
 - `check_connection.py`: connects and declares the Spyglass schemas.
 - `insert_full_session.py`: runs `insert_sessions()` on the given files, then prints row counts per table and the `InsertError` log. Re-running a file deletes its previous entry first.
-- `insert_fiber_photometry.py`, `dry_run_insertion.py`: earlier photometry-only scripts.
-- `notebooks/spyglass_fiber_photometry_tutorial.ipynb`: reads the photometry data back out of the database.
+- `notebooks/spyglass_fiber_photometry_tutorial.ipynb`: fiber photometry, read back from the database.
+- `notebooks/spyglass_pose_tutorial.ipynb`: multi-camera 3D pose, cameras and videos, lone and social sessions.
+- `notebooks/spyglass_hed_herd_tutorial.ipynb`: HERD ontology references and HED annotations.
+
+The notebooks read the database only; run `insert_full_session.py` first. The pose notebook also reads frames from the video files, which stay on the lab data share (see its setup cell).
 
 ## Pull requests and issues
 

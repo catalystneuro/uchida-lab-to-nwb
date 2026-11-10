@@ -1,8 +1,8 @@
 """Full Spyglass ingestion of converted DANDI:001935 NWB files with `insert_sessions()`.
 
-Runs every common table (not only fiber photometry, unlike insert_fiber_photometry.py),
-then prints row counts per table and the InsertError log for each file. Errors are
-collected with raise_err=False so one run shows every table that fails.
+Runs every common table, then prints row counts per table and the InsertError log for
+each file. Errors are collected with raise_err=False so one run shows every table that
+fails.
 
 Needs a Spyglass build with fiber photometry and multi-camera pose support, e.g. the
 `uchida-integration` branch of https://github.com/catalystneuro/spyglass installed in the
