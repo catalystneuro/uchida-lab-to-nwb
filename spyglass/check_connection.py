@@ -1,9 +1,9 @@
 """Smoke test: confirm DataJoint can reach the local Spyglass MySQL container
 (port 3307) and that the Spyglass schemas materialize.
 
-Run from this directory inside the `spyglass-photometry` conda env (WSL):
+Run from this directory inside the `spyglass-uchida-lab-env` conda env (WSL):
 
-    conda activate spyglass-photometry
+    conda activate spyglass-uchida-lab-env
     python check_connection.py
 
 Critical ordering: dj.config.load(...) BEFORE importing any spyglass module. Spyglass

@@ -3,12 +3,12 @@ see exactly what succeeds/fails against the draft common_photometry schema
 (LorenFrankLab/spyglass PR #1637, branch feature/fiber-photometry-ingestion).
 
 This deliberately does NOT change the NWB file first -- the point is to observe real
-behavior instead of guessing from source reading. Run inside the `spyglass-photometry`
-WSL env (spyglass installed from the PR branch; the `spyglass` env stays untouched):
+behavior instead of guessing from source reading. Run inside the `spyglass-uchida-lab-env`
+WSL env, from this directory:
 
-    cd /mnt/c/Users/algab/CatalystNeuro/uchida-lab-to-nwb/spyglass
-    /home/algab/.conda/envs/spyglass-photometry/bin/python dry_run_insertion.py
-    /home/algab/.conda/envs/spyglass-photometry/bin/python dry_run_insertion.py <file.nwb>
+    conda activate spyglass-uchida-lab-env
+    python dry_run_insertion.py
+    python dry_run_insertion.py <file.nwb>
 
 Scope: fiber photometry only. Tables for other modalities (pose, video, ...) are printed
 at the end for information but are not chased.

@@ -1,0 +1,48 @@
+# Conda environment for ingesting the converted DANDI:001935 NWB files into Spyglass.
+#
+# Spyglass comes from the `uchida-integration` branch of the CatalystNeuro fork
+# (https://github.com/catalystneuro/spyglass), which merges upstream `master` with the
+# changes these files need, each on its own branch of the fork:
+#   - fiber photometry: LorenFrankLab/spyglass#1637 (branch feature/fiber-photometry-ingestion)
+#   - multi-camera 3D pose, calibrated and plain-Device cameras: ndx-pose-multicamera
+#     (https://github.com/catalystneuro/spyglass/pull/1)
+#   - HERD external resources: herd-external-resources (https://github.com/catalystneuro/spyglass/pull/2)
+#   - HED annotations: hed-annotations
+#
+# Create it with bootstrap_wsl.sh, not `conda env create` alone: the script creates it from
+# this file and then installs the pins below, which pip cannot resolve together with the
+# packages here because they conflict with requirements Spyglass and ndx-franklab-novela
+# declare:
+#
+#   1. pynwb 4.2.0 and hdmf 6.2.0, with ndx-pose 0.4.0 and ndx-hed 0.3.0.
+#      The converted files use NWB 2.11 and ndx-pose 0.4.0 types (CalibratedCamera,
+#      MultiCameraPoseEstimation). ndx-pose 0.4.0 needs hdmf>=6.1 and pynwb>=4, which
+#      conflicts with ndx-franklab-novela's `hdmf<5`. Spyglass imports and ingests fine.
+#      ndx-hed 0.3.0 pulls hedtools, which needs numpy>=2, so scipy is pinned to 1.15.3:
+#      Spyglass's `scipy<1.13` (kept for SpikeInterface 0.99, unused here) cannot load
+#      with numpy 2.
+#   2. ndx-optogenetics 0.4.1 and ndx-ophys-devices 0.3.1.
+#      Spyglass and ndx-franklab-novela pin ndx-optogenetics==0.3.0; 0.4.1 adds to its schema
+#      and caps ndx-ophys-devices below 0.4, whose new ViralVectorInjection layout Spyglass
+#      cannot read. The files were written with ndx-ophys-devices 0.3.1.
+#   3. kachery-cloud, then pubnub<6.4.
+#      insert_sessions() imports Spyglass's spike-sorting modules. kachery-cloud wants
+#      pubnub>=7.2, Spyglass wants pubnub<6.4; re-pinning pubnub keeps both importable.
+#
+#   wsl -d Ubuntu-24.04 -- bash /mnt/c/<path to repo>/spyglass/bootstrap_wsl.sh
+
+name: spyglass-uchida-lab-env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - hdf5
+  - git
+  - pip:
+      - "git+https://github.com/catalystneuro/spyglass.git@uchida-integration"
+      - ndx-fiber-photometry==0.2.3
+      - ndx-franklab-novela==0.2.4
+      - pyyaml
+      - jupyter
+      - matplotlib

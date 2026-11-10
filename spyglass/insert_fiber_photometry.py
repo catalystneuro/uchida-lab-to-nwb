@@ -25,10 +25,10 @@ Mirrors, rather than reimplements, Spyglass's own mechanics:
     `spyglass.common.populate_all_common.single_transaction_make()` helper, just with a
     trimmed `tables` list, grouped/ordered the same way populate_all_common() does.
 
-Run inside the `spyglass-photometry` WSL env, passing NWB file names in the Spyglass raw dir
-(defaults to sub-M4_ses-day-1-lone.nwb):
-    cd /mnt/c/Users/algab/CatalystNeuro/uchida-lab-to-nwb/spyglass
-    /home/algab/.conda/envs/spyglass-photometry/bin/python insert_fiber_photometry.py [file.nwb ...]
+Run inside the `spyglass-uchida-lab-env` WSL env, from this directory, passing NWB file names in
+the Spyglass raw dir (defaults to sub-M4_ses-day-1-lone.nwb):
+    conda activate spyglass-uchida-lab-env
+    python insert_fiber_photometry.py [file.nwb ...]
 """
 
 import sys
