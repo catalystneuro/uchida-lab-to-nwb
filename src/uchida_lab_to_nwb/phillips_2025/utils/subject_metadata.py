@@ -117,9 +117,7 @@ def _parse_subject_row(raw: dict) -> dict:
     species = str(raw.get("Species", "Rattus norvegicus")).strip()
 
     weight_raw = raw.get("Weight at time of experiment")
-    weight_str = (
-        None if (weight_raw is None or str(weight_raw).lower() == "not available") else str(weight_raw)
-    )
+    weight_str = None if (weight_raw is None or str(weight_raw).lower() == "not available") else str(weight_raw)
 
     desc_parts = [f"Experimental group: {exp_group}.", f"Strain: {strain_raw}."]
     if surgery_str:

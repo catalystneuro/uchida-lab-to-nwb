@@ -4,7 +4,7 @@
 **Point person**: Hannah Phillips
 **Dataset**: SFARI ARC, subjects M4, M5, M7 × 2 days × Lone and Social conditions = 12 sessions
 **Repo**: <https://github.com/catalystneuro/uchida-lab-to-nwb>
-**Last updated**: 2026-11-03
+**Last updated**: 2026-11-09
 
 ---
 
@@ -62,16 +62,21 @@
 ### Metadata and Ontologies
 
 - [x] HERD: species, strain, experimenter (ORCID), institution (ROR), anatomical structures (<https://github.com/catalystneuro/uchida-lab-to-nwb/pull/6>)
-- [ ] HED table
+- [x] Epoch + Spyglass task table (`TaskEpochInterface`), annotated with HED (schema 8.5.0); `camera_id` lists the 6 cameras
+- [ ] Spyglass ingestion test of epochs and tasks
+- [x] Tutorial: sections on the social partner and on task/epoch/HED
 
 ---
 
 ## Post-Conversion
 
 - [x] Example notebook: [notebooks/dandi_001935_tutorial.ipynb](../../../../notebooks/dandi_001935_tutorial.ipynb)
-- [ ] Re-convert all 12 sessions with the current code (files in `H:/uchida-nwbfiles` date from August and September 2026)
-- [ ] NWB Inspector on the full files: zero CRITICAL
-- [ ] DANDI upload to Dandiset 001935 (embargo mode planned)
+- [x] Re-convert all 12 sessions with the current code (2026-11-09, commit `1ff5ff4`, neuroconv `8152f94`; see conversion_notes.md, Full conversion runs)
+- [x] NWB Inspector on the full files: zero CRITICAL, zero violations (2026-11-09)
+- [x] Inspection script, `inspection.py`: per-file reports and `inspection_summary.csv` (2026-11-09)
+- [x] Upload script, `upload_to_DANDI.py`: organize, compare with the draft, validate, upload (2026-11-09)
+- [ ] DANDI upload to Dandiset 001935 (embargoed). The draft holds an earlier test upload of M4 day-1 (2 NWB files, 9 videos); remove its superseded videos after uploading
+- [ ] Final meeting and handover to the lab
 - [ ] Example notebook PR submitted to `dandi/example-notebooks`
 
 ---

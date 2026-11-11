@@ -1,4 +1,12 @@
-"""Batch conversion of all Uchida Lab (Phillips 2025) sessions to NWB."""
+"""Batch conversion of all Uchida Lab (Phillips 2025) sessions to NWB.
+
+dataset_to_nwb converts every session of one condition folder (Lone_data or Social_data) with
+convert_session.session_to_nwb, writing <output folder>/sub-<subject>/sub-<subject>_ses-<session>.nwb. A session that
+fails does not stop the others: its traceback is written to <output folder>/exceptions/. Run this file to convert
+both conditions; the paths are set in the ``if __name__ == "__main__":`` block at the bottom.
+
+After converting, run inspection.py on the output folder, then upload_to_DANDI.py.
+"""
 
 import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -15,7 +23,7 @@ from uchida_lab_to_nwb.phillips_2025.utils.subject_metadata import get_subject_m
 def get_session_to_nwb_kwargs_per_session(
     *,
     data_dir_path: Union[str, Path],
-    subject_metadata_path: Union[str, Path, None] = None,
+    subject_metadata_path: Union[str, Path],
 ) -> list[dict]:
     """Discover all sessions in the data directory and return kwargs for each.
 
@@ -30,10 +38,9 @@ def get_session_to_nwb_kwargs_per_session(
     ----------
     data_dir_path : str or Path
         Root directory containing day_*/M*/ session folders.
-    subject_metadata_path : str or Path, optional
-        Path to the lab-provided ``Subject metadata.xlsx`` spreadsheet. When
-        omitted, or when a subject is missing from the sheet, that subject's
-        NWB Subject metadata falls back to the converter's placeholders.
+    subject_metadata_path : str or Path
+        Path to the lab-provided ``Subject metadata.xlsx`` spreadsheet. A session whose
+        subject is missing from the sheet is skipped with a warning.
 
     Returns
     -------
@@ -41,8 +48,7 @@ def get_session_to_nwb_kwargs_per_session(
         One dict per session containing kwargs for `session_to_nwb`.
     """
     data_dir_path = Path(data_dir_path)
-    if subject_metadata_path is not None:
-        subject_metadata_path = Path(subject_metadata_path)
+    subject_metadata_path = Path(subject_metadata_path)
 
     kwargs_list = []
     for day_dir in sorted(data_dir_path.glob("day_*")):
@@ -52,20 +58,15 @@ def get_session_to_nwb_kwargs_per_session(
             if not subject_dir.is_dir():
                 continue
             # Sanity check: must have at least a pCampi H5 and a Doric file
-            if not list(subject_dir.glob("*.h5")) or not list(
-                subject_dir.glob("*.doric")
-            ):
+            if not list(subject_dir.glob("*.h5")) or not list(subject_dir.glob("*.doric")):
                 continue
             subject_id = subject_dir.name
 
-            subject_metadata = {}
-            if subject_metadata_path is not None:
-                try:
-                    subject_metadata = get_subject_metadata(
-                        subject_id, subject_metadata_path
-                    )
-                except KeyError as exc:
-                    print(f"  [WARNING] {exc}")
+            try:
+                subject_metadata = get_subject_metadata(subject_id, subject_metadata_path)
+            except KeyError as exc:
+                print(f"  [WARNING] {exc}; skipping {subject_dir}")
+                continue
 
             kwargs_list.append(
                 dict(
@@ -82,6 +83,15 @@ def safe_session_to_nwb(
     session_to_nwb_kwargs: dict,
     exception_file_path: Union[Path, str],
 ) -> None:
+    """Run session_to_nwb and write the traceback of any exception to exception_file_path.
+
+    Parameters
+    ----------
+    session_to_nwb_kwargs : dict
+        Keyword arguments of session_to_nwb.
+    exception_file_path : Path or str
+        File the kwargs and the traceback are written to if the conversion raises.
+    """
     exception_file_path = Path(exception_file_path)
     try:
         session_to_nwb(**session_to_nwb_kwargs)
@@ -95,21 +105,22 @@ def dataset_to_nwb(
     *,
     data_dir_path: Union[str, Path],
     output_dir_path: Union[str, Path],
-    subject_metadata_path: Union[str, Path, None] = None,
+    subject_metadata_path: Union[str, Path],
     max_workers: int = 1,
     stub_test: bool = False,
     overwrite: bool = False,
     verbose: bool = True,
 ) -> None:
-    """Convert the entire Phillips 2025 dataset to NWB.
+    """Convert every session of one condition folder of the Phillips 2025 dataset to NWB.
 
     Parameters
     ----------
     data_dir_path : str or Path
-        Root data directory (e.g. ``Lone_data/``).
+        Condition folder, ``Lone_data/`` or ``Social_data/``, holding ``day_*/M*/`` sessions.
     output_dir_path : str or Path
-        Directory where NWB files will be written.
-    subject_metadata_path : str or Path, optional
+        Directory where NWB files will be written, one ``sub-<subject>/`` folder per subject.
+        Failed sessions write their traceback to ``exceptions/`` in it.
+    subject_metadata_path : str or Path
         Path to the lab-provided ``Subject metadata.xlsx`` spreadsheet.
     max_workers : int
         Number of parallel workers.
@@ -137,8 +148,13 @@ def dataset_to_nwb(
             kwargs["stub_test"] = stub_test
             kwargs["overwrite"] = overwrite
             kwargs["verbose"] = verbose
-            session_id = kwargs["session_dir_path"].name
-            exception_file_path = exception_dir / f"ERROR_{session_id}.txt"
+            # Name by condition, day and subject: the subject folder name alone (e.g. "M4") repeats across
+            # days and conditions, which share one exceptions folder.
+            session_dir_path = kwargs["session_dir_path"]
+            condition = data_dir_path.name.removesuffix("_data").lower()
+            exception_file_path = (
+                exception_dir / f"ERROR_{condition}_{session_dir_path.parent.name}_{session_dir_path.name}.txt"
+            )
             futures.append(
                 executor.submit(
                     safe_session_to_nwb,
@@ -147,9 +163,7 @@ def dataset_to_nwb(
                 )
             )
 
-        for _ in tqdm(
-            as_completed(futures), total=len(futures), desc="Converting sessions"
-        ):
+        for _ in tqdm(as_completed(futures), total=len(futures), desc="Converting sessions"):
             pass
 
 

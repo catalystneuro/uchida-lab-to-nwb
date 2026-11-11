@@ -8,6 +8,8 @@ dependencies:
     - jupyter
     - matplotlib
     - numpy
+    - pandas
+    - scipy
     - pynwb
     - h5py
     - dandi
@@ -15,3 +17,5 @@ dependencies:
     - ndx-fiber-photometry
     - ndx-ophys-devices>=0.3.1
     - ndx-pose
+    - ndx-hed
+    - opencv-python-headless

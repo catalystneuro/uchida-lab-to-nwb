@@ -17,7 +17,7 @@ from neuroconv.utils import DeepDict
 # pCampi records at exactly 1 kHz on the NIDAQ
 _DEFAULT_SAMPLING_RATE = 1000.0
 
-# Filename pattern: YYYYMMDD_HHMMSS_M{id}.h5
+# Filename pattern: YYMMDD_HHMMSS_M{id}.h5, e.g. 240624_135840_M4.h5
 _FILENAME_PATTERN = re.compile(r"(\d{6}_\d{6})_M\d+\.h5")
 
 
@@ -64,9 +64,7 @@ class PCampiSyncInterface(BaseDataInterface):
         self.verbose = verbose
         self._sampling_rate = float(sampling_rate)
         self._channel_name = channel_name
-        super().__init__(
-            file_path=file_path, channel_name=channel_name, sampling_rate=sampling_rate
-        )
+        super().__init__(file_path=file_path, channel_name=channel_name, sampling_rate=sampling_rate)
         self._load_data()
 
     @classmethod
@@ -90,10 +88,7 @@ class PCampiSyncInterface(BaseDataInterface):
     def _load_data(self):
         with h5py.File(self.source_data["file_path"], "r") as f:
             dataset = f["digital_input/data"]
-            channel_names = [
-                name.strip()
-                for name in dataset.attrs.get("channel_names", "").split(",")
-            ]
+            channel_names = [name.strip() for name in dataset.attrs.get("channel_names", "").split(",")]
             if self._channel_name not in channel_names:
                 raise ValueError(
                     f"Channel {self._channel_name!r} not found in "
@@ -112,14 +107,13 @@ class PCampiSyncInterface(BaseDataInterface):
 
     def get_metadata(self) -> DeepDict:
         metadata = super().get_metadata()
-        # Extract session start time from filename: YYYYMMDD_HHMMSS_M{id}.h5
+        # Extract session start time from filename: YYMMDD_HHMMSS_M{id}.h5. The timezone is added
+        # in convert_session.py.
         fname = Path(self.source_data["file_path"]).name
         m = _FILENAME_PATTERN.match(fname)
         if m:
             try:
-                metadata["NWBFile"]["session_start_time"] = datetime.strptime(
-                    m.group(1), "%y%m%d_%H%M%S"
-                )
+                metadata["NWBFile"]["session_start_time"] = datetime.strptime(m.group(1), "%y%m%d_%H%M%S")
             except ValueError:
                 pass
         return metadata
@@ -144,8 +138,7 @@ class PCampiSyncInterface(BaseDataInterface):
         series = TimeSeries(
             name=f"SyncTTL_{self._channel_name}",
             description=(
-                f"pCampi synchronization TTL channel: {self._channel_name}. "
-                "Recorded at 1 kHz by LabVIEW NIDAQ."
+                f"pCampi synchronization TTL channel: {self._channel_name}. " "Recorded at 1 kHz by LabVIEW NIDAQ."
             ),
             data=self._data[:n].astype(np.int16),
             rate=self._sampling_rate,

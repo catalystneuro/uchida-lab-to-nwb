@@ -19,12 +19,15 @@ classifiers = [
 dependencies = [
     "pynwb>=4.0.0",
     "nwbinspector",
+    "dandi",
+    "tqdm",
     # External-resource (HERD) annotation from metadata["ExternalResources"] is on neuroconv main,
     # not yet released.
     "neuroconv[dannce] @ git+https://github.com/catalystneuro/neuroconv.git@main",
     "ndx-pose==0.4.0",
     "ndx-fiber-photometry==0.2.4",
     "ndx-ophys-devices==0.3.1",
+    "ndx-hed==0.3.0",
     "openpyxl",
     "python-dateutil",
     "opencv-python-headless",
