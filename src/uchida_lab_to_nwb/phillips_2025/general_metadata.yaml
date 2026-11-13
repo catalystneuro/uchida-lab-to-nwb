@@ -20,6 +20,38 @@ NWBFile:
     - SFARI ARC
   # related_publications: []  # TODO: add DOI when available
 
+# Behavioral task of each condition, written by TaskEpochInterface to processing/tasks in the
+# layout Spyglass reads into Task and TaskEpoch. Keyed by condition (the Lone_data / Social_data
+# folder). `hed` refers to a definition under HED below.
+Tasks:
+  lone:
+    task_name: lone
+    task_description: >-
+      The implanted rat behaves freely, alone in the arena. Dopamine in the nucleus accumbens and
+      tail of striatum is recorded with fiber photometry (GRABDA3m, with tdTomato as control), and
+      behavior with 6-camera video and 3D pose estimation (DANNCE).
+    task_environment: arena
+    hed: Def/Lone-condition
+  social:
+    task_name: social
+    task_description: >-
+      The implanted rat behaves freely in the arena with a partner rat. Dopamine in the nucleus
+      accumbens and tail of striatum of the implanted rat is recorded with fiber photometry
+      (GRABDA3m, with tdTomato as control). The partner has no fiber photometry. Both rats are
+      tracked with 6-camera video and 3D pose estimation (social DANNCE).
+    task_environment: arena
+    hed: Def/Social-condition
+
+# HED (Hierarchical Event Descriptors) schema version and lab definitions, written to
+# HedLabMetaData (ndx-hed). The implanted rat is the Experiment-participant; in the social
+# condition the partner rat is an Experiment-actor (an agent with a set role in the scenario).
+# Validated with ndx_hed HedNWBValidator against HED 8.5.0 on 2026-11-09.
+HED:
+  hed_schema_version: "8.5.0"
+  definitions: >-
+    (Definition/Lone-condition, (Task, (Experiment-participant, Animal-agent, Awake), Indoors, Real-world)),
+    (Definition/Social-condition, (Task, (Experiment-participant, Animal-agent, Awake), (Experiment-actor, Animal-agent), Indoors, Real-world))
+
 # External resources (HERD). NeuroConv writes every term stated here into the file under
 # /general/external_resources during run_conversion. Each map is keyed by the exact value it
 # annotates; terms for values a session does not have are skipped. IDs checked against the EBI
