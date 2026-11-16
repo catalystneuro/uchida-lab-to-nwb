@@ -25,6 +25,7 @@ dependencies = [
     "ndx-pose==0.4.0",
     "ndx-fiber-photometry==0.2.4",
     "ndx-ophys-devices==0.3.1",
+    "ndx-hed==0.3.0",
     "openpyxl",
     "python-dateutil",
     "opencv-python-headless",

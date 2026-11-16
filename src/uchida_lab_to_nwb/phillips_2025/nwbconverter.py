@@ -15,6 +15,7 @@ from uchida_lab_to_nwb.phillips_2025.interfaces import (
     DffFiberPhotometryInterface,
     PCampiSyncInterface,
     ProcessedFiberPhotometryInterface,
+    TaskEpochInterface,
 )
 
 # Interfaces whose native timestamps are on the Doric BBC300 clock (raw fiber photometry) or a
@@ -170,6 +171,7 @@ class Phillips2025NWBConverter(NWBConverter):
         DffDopamineSignal=DffFiberPhotometryInterface,
         PCampiSyncCampyTrigger=PCampiSyncInterface,
         PCampiSyncRbfmcFrames=PCampiSyncInterface,
+        TaskEpoch=TaskEpochInterface,
     )
 
     def temporally_align_data_interfaces(self, metadata: dict | None = None, conversion_options: dict | None = None):

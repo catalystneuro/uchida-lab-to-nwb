@@ -137,8 +137,13 @@ def dataset_to_nwb(
             kwargs["stub_test"] = stub_test
             kwargs["overwrite"] = overwrite
             kwargs["verbose"] = verbose
-            session_id = kwargs["session_dir_path"].name
-            exception_file_path = exception_dir / f"ERROR_{session_id}.txt"
+            # Name by condition, day and subject: the subject folder name alone (e.g. "M4") repeats across
+            # days and conditions, which share one exceptions folder.
+            session_dir_path = kwargs["session_dir_path"]
+            condition = data_dir_path.name.removesuffix("_data").lower()
+            exception_file_path = (
+                exception_dir / f"ERROR_{condition}_{session_dir_path.parent.name}_{session_dir_path.name}.txt"
+            )
             futures.append(
                 executor.submit(
                     safe_session_to_nwb,
