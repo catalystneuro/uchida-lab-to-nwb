@@ -227,8 +227,8 @@ def upload_organized_files(*, dandiset_path: Union[str, Path], dandi_instance: s
 
 
 if __name__ == "__main__":
-    nwb_folder_path = Path("H:/uchida-nwbfiles")  # output folder of convert_all_sessions.py
-    dandiset_folder_path = Path("H:/uchida-dandiset")
+    nwb_folder_path = Path("/path/to/nwbfiles")  # output folder of convert_all_sessions.py
+    dandiset_folder_path = Path("/path/to/dandiset")  # the organized copy is written here
     dandiset_id = "001935"
     dandi_instance = "dandi"  # "dandi" for the archive, "dandi-sandbox" for the sandbox
     # Set to True after checking the organized folder and the draft asset report printed below.

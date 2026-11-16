@@ -1,116 +1,93 @@
 # uchida-lab-to-nwb
 
-NWB conversion scripts for the [Uchida Lab](https://projects.iq.harvard.edu/uchidalab) data,
-using [NeuroConv](https://github.com/catalystneuro/neuroconv).
+Conversion of the Uchida Lab's fiber photometry and behavior recordings to the
+[Neurodata Without Borders](https://nwb-overview.readthedocs.io/) (NWB) format, built on
+[NeuroConv](https://neuroconv.readthedocs.io/).
 
-**Project**: SFARI Autism Rat Models Consortium (ARC)
-**Study**: Social behavior and observational fear learning in autism rat models
-**PI**: Prof. Naoshige Uchida, Harvard University
-**Dandiset**: [DANDI:001935](https://dandiarchive.org/dandiset/001935) (embargoed)
-
-## Dataset
-
-12 sessions: subjects M4, M5 and M7, 2 days each, in two conditions. In the lone condition the
-implanted rat is alone in the arena; in the social condition a partner rat is with it. Each session
-becomes one NWB file, `sub-<subject>/sub-<subject>_ses-day-<N>-<lone|social>.nwb`.
-
-## Data streams
-
-- Fiber photometry, raw (Doric BBC300, `.doric`): dopamine sensor GRABDA3m and tdTomato control in
-  the nucleus accumbens and the tail of the striatum
-- Fiber photometry resampled to the camera triggers by the lab's MATLAB pipeline
-  (`interpolated_campy_and_doric.mat`)
-- 6-camera behavioral video (Basler, `.mp4` via campy), linked as external files
-- 3D pose estimation (DANNCE / social DANNCE, `.mat`, 23 keypoints); in social sessions also the
-  partner rat's pose
-- pCampi synchronization TTL pulses (LabVIEW, `.h5`), which set the session's time base
-- One epoch and one task per session, in the layout Spyglass reads, annotated with HED
-- Ontology terms (HERD) for species, strain, experimenter, institution and anatomy
-
-The lab-computed dF/F (`processed_dff.mat`) is not converted until the lab confirms what it
-holds; its interface is ready but disabled. See
-[conversion_notes.md](src/uchida_lab_to_nwb/phillips_2025/documentation/conversion_notes.md).
+The `phillips_2025` conversion covers recordings from the SFARI Autism Rat Models Consortium (ARC) project on social
+behavior and observational fear learning in autism rat models (Uchida Lab, Harvard University). Rats behave freely in
+an arena, alone (lone condition) or with a partner rat (social condition), while dopamine is recorded by fiber photometry
+in the nucleus accumbens and the tail of the striatum. Each NWB file holds one session: the raw and processed
+photometry, the 3D pose of the rat (and of the partner in social sessions) with the 6 camera videos, the sync pulses,
+the session's task and epoch, and the subject and device metadata. The files are shared in
+[DANDI:001935](https://dandiarchive.org/dandiset/001935) (embargoed).
 
 ## Installation
 
+Install [git](https://github.com/git-guides/install-git) and [conda](https://docs.conda.io/en/latest/miniconda.html),
+then, from a terminal:
+
 ```bash
-conda env create -f make_env.yml
+git clone https://github.com/catalystneuro/uchida-lab-to-nwb
+cd uchida-lab-to-nwb
+conda env create --file make_env.yml
 conda activate uchida-lab-to-nwb-env
 ```
 
-Or with pip:
+This creates a conda environment with the package installed in editable mode, so that changes to the code and
+metadata files apply without installing again. Without conda, use Python 3.11 or 3.12 and run `pip install --editable .`
+in the cloned folder.
+
+NeuroConv is installed from its `main` branch, which holds the HERD and DANNCE features this conversion needs and
+which are not released yet.
+
+## Quick start
+
+Set the data share and output folder paths in the `if __name__ == "__main__":` block of each script, then:
 
 ```bash
-pip install -e .
+python src/uchida_lab_to_nwb/phillips_2025/convert_all_sessions.py
+python src/uchida_lab_to_nwb/phillips_2025/inspection.py
 ```
 
-NeuroConv is installed from its `main` branch, which holds the HERD and DANNCE features this
-conversion needs and which are not released yet.
+The first writes one NWB file per session to the output folder; the second inspects them with NWB Inspector. See
+[Converting sessions](src/uchida_lab_to_nwb/phillips_2025/docs/converting_sessions.md).
 
-## Usage
+## Documentation
 
-Each script has an `if __name__ == "__main__":` block at the bottom with the paths used for the
-conversion (data share on `H:/Uchida-CN-data-share`, output in `H:/uchida-nwbfiles`). Edit the paths
-there and run the file. Keep the output folder on the same drive as the data share: the NWB files
-link the videos by a path relative to the file, which is not possible across drives.
+The conversion pipeline in general, in [docs/](docs/):
 
-1. Convert: `convert_all_sessions.py` converts every session of `Lone_data` and `Social_data`.
-   `convert_session.py` converts one session; set `stub_test=True` for a quick small file.
-2. Inspect: `inspection.py` runs NWB Inspector (DANDI configuration) on every converted file. It
-   writes one report per file to `inspector_reports/` and a table, `inspection_summary.csv`, to the
-   output folder.
-3. Upload: `upload_to_DANDI.py` copies the files into a local dandiset folder organized as DANDI
-   expects, prints how they compare with the files already on the draft, and uploads them once
-   `upload = True` is set. It needs a DANDI API key in the `DANDI_API_KEY` environment variable.
+- [The conversion pipeline](docs/conversion_pipeline.md): NWB, NeuroConv, the parts of a conversion and the steps from
+  recordings to DANDI.
+- [Building a new conversion pipeline](docs/new_conversion_pipeline.md): converting another experiment to NWB.
 
-The same steps from Python:
+The Phillips 2025 conversion, in [phillips_2025/docs/](src/uchida_lab_to_nwb/phillips_2025/docs/):
 
-```python
-from uchida_lab_to_nwb.phillips_2025.convert_all_sessions import dataset_to_nwb
-from uchida_lab_to_nwb.phillips_2025.inspection import inspect_output_folder
+- [Data organization](src/uchida_lab_to_nwb/phillips_2025/docs/data_organization.md): the data share layout, conditions, subjects and lab files.
+- [Converting sessions](src/uchida_lab_to_nwb/phillips_2025/docs/converting_sessions.md): converting sessions, and the output files.
+- [Data streams](src/uchida_lab_to_nwb/phillips_2025/docs/data_streams.md): raw and processed signals, pose and video, and how their times are aligned.
+- [Metadata](src/uchida_lab_to_nwb/phillips_2025/docs/metadata.md): editing the metadata files, adding a subject or a condition, ontology terms.
+- [NWB file structure](src/uchida_lab_to_nwb/phillips_2025/docs/nwb_file_structure.md): what is stored where, and how to read a file.
+- [Spyglass ingestion](src/uchida_lab_to_nwb/phillips_2025/docs/spyglass_ingestion.md)
+- [DANDI staging](src/uchida_lab_to_nwb/phillips_2025/docs/dandi_staging.md): organizing, validating and uploading the files.
+- [Troubleshooting](src/uchida_lab_to_nwb/phillips_2025/docs/troubleshooting.md): conversion errors and known issues.
 
-dataset_to_nwb(
-    data_dir_path="H:/Uchida-CN-data-share/Hannah_data/M4-M7/Lone_data",
-    output_dir_path="H:/uchida-nwbfiles",
-    subject_metadata_path="H:/Uchida-CN-data-share/Subject metadata.xlsx",
-    max_workers=1,
-)
-inspect_output_folder("H:/uchida-nwbfiles")
-```
+The notebook [notebooks/dandi_001935_tutorial.ipynb](notebooks/dandi_001935_tutorial.ipynb) reads a session from
+DANDI or from disk and shows each data stream (see [notebooks/README.md](notebooks/README.md)).
 
-## Example notebook
-
-[notebooks/dandi_001935_tutorial.ipynb](notebooks/dandi_001935_tutorial.ipynb) loads a session and
-shows each data stream. See [notebooks/README.md](notebooks/README.md).
-
-## Repository structure
+## Repository layout
 
 ```text
-src/uchida_lab_to_nwb/
-└── phillips_2025/
-    ├── interfaces/
-    │   ├── pcampi_sync_interface.py                 # pCampi TTL channels (.h5), session start time
-    │   ├── processed_fiber_photometry_interface.py  # Lab-resampled photometry (interpolated_campy_and_doric.mat)
-    │   ├── task_epoch_interface.py                  # Epoch, Spyglass task table and HED
-    │   └── dff_fiber_photometry_interface.py        # Lab dF/F (processed_dff.mat), disabled
-    ├── utils/
-    │   ├── constants.py                             # rat23 skeleton landmarks and edges
-    │   └── subject_metadata.py                      # Subject metadata from Subject metadata.xlsx
-    ├── nwbconverter.py                              # Converter class and temporal alignment
-    ├── convert_session.py                           # Converts one session
-    ├── convert_all_sessions.py                      # Converts all sessions of a condition
-    ├── inspection.py                                # NWB Inspector on the converted files
-    ├── upload_to_DANDI.py                           # Organize and upload to DANDI
-    ├── general_metadata.yaml                        # Lab, experiment, task, HED and ontology metadata
-    ├── fiber_photometry.yaml                        # Fiber photometry hardware metadata
-    └── documentation/
-        ├── conversion_notes.md                      # Data streams, decisions, open questions
-        ├── project_track.md                         # Progress tracker
-        └── explore_sync_signals.py                  # Exploration of the pCampi and Doric sync signals
-notebooks/
-├── dandi_001935_tutorial.ipynb                      # Example notebook
-└── environment.yml
+src/uchida_lab_to_nwb/phillips_2025/
+├── convert_session.py        conversion of one session
+├── convert_all_sessions.py   conversion of all sessions
+├── nwbconverter.py           NWBConverter of the dataset and time alignment
+├── interfaces/               data interfaces (pCampi sync, processed photometry, dF/F, task and epoch)
+├── utils/                    subject metadata and the rat23 skeleton
+├── inspection.py             NWB Inspector reports and inspection summary
+├── upload_to_DANDI.py        organizing and uploading to DANDI
+├── general_metadata.yaml     experiment, tasks, HED and ontology terms
+├── fiber_photometry.yaml     fiber photometry devices, indicators and series
+└── docs/                     documentation of this conversion
+docs/                         documentation of the conversion pipeline in general
+notebooks/                    example notebook
 ```
 
-Raw Doric fiber photometry (`DoricFiberPhotometryInterface`) and DANNCE pose with the multi-camera
-video (`DANNCEConverter`, `DANNCEInterface`) are used directly from NeuroConv.
+## Citation
+
+If you use these files, please cite [NeuroConv](https://github.com/catalystneuro/neuroconv) and
+[NWB](https://www.nwb.org/) for the conversion.
+
+## License
+
+See [LICENSE](LICENSE).

@@ -45,7 +45,7 @@ Tasks:
 # HED (Hierarchical Event Descriptors) schema version and lab definitions, written to
 # HedLabMetaData (ndx-hed). The implanted rat is the Experiment-participant; in the social
 # condition the partner rat is an Experiment-actor (an agent with a set role in the scenario).
-# Validated with ndx_hed HedNWBValidator against HED 8.5.0 on 2026-11-09.
+# After editing, validate a converted file with ndx_hed's HedNWBValidator.
 HED:
   hed_schema_version: "8.5.0"
   definitions: >-
@@ -54,8 +54,9 @@ HED:
 
 # External resources (HERD). NeuroConv writes every term stated here into the file under
 # /general/external_resources during run_conversion. Each map is keyed by the exact value it
-# annotates; terms for values a session does not have are skipped. IDs checked against the EBI
-# Ontology Lookup Service (UBERON, NCBITaxon) and the SciCrunch resolver (RRID) on 2026-10-16.
+# annotates; terms for values a session does not have are skipped. Look up new IDs in the EBI
+# Ontology Lookup Service (https://www.ebi.ac.uk/ols4; UBERON, NCBITaxon), the SciCrunch resolver
+# (RRID), ORCID and ROR.
 ExternalResources:
   species:
     Rattus norvegicus: { id: "NCBITaxon:10116", uri: "http://purl.obolibrary.org/obo/NCBITaxon_10116" }
@@ -63,16 +64,16 @@ ExternalResources:
   # same one NeuroConv's strain table gives; the supplier is not recorded in the subject sheet.
   strain:
     Long Evans: { id: "RRID:RGD_2308852", uri: "https://scicrunch.org/resolver/RRID:RGD_2308852" }
-  # NWBFile.experimenter, ORCID iD confirmed with the lab on 2026-11-03.
+  # NWBFile.experimenter, by ORCID iD.
   experimenter:
     Phillips, Hannah: { id: "orcid:0000-0002-9093-0505", uri: "https://orcid.org/0000-0002-9093-0505" }
-  # NWBFile.institution, ROR ID checked against the ROR API on 2026-11-03.
+  # NWBFile.institution, by ROR ID.
   institution:
     Harvard University: { id: "ror:03vek6s52", uri: "https://ror.org/03vek6s52" }
   # FiberPhotometryTable locations and rat23 skeleton node names share one map.
   anatomical_structures:
     # Keys must match the `location` strings in fiber_photometry.yaml. Tail of Striatum has no
-    # UBERON or Allen term (checked 2026-08-12) and uses the broader striatum.
+    # UBERON or Allen term and uses the broader striatum.
     Nucleus Accumbens: { id: "UBERON:0001882", uri: "http://purl.obolibrary.org/obo/UBERON_0001882" }
     Tail of Striatum: { id: "UBERON:0002435", uri: "http://purl.obolibrary.org/obo/UBERON_0002435" }  # striatum
     # rat23 skeleton nodes. UBERON has no left/right terms, so both sides share one term (YAML

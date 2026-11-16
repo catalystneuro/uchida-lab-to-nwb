@@ -134,8 +134,8 @@ def session_to_nwb(
     ``NWBFile.session_start_time`` is set from the pCampi filename (``PCampiSyncInterface`` is the
     only interface that sets it). ``Phillips2025NWBConverter.temporally_align_data_interfaces()``
     (see ``nwbconverter.py``) aligns the raw and processed Doric fiber photometry interfaces, and
-    the DANNCE pose + video interfaces, onto that same pCampi clock. See conversion_notes.md,
-    Temporal Alignment.
+    the DANNCE pose + video interfaces, onto that same pCampi clock. See docs/data_streams.md,
+    Time alignment.
     """
     session_dir_path = Path(session_dir_path)
     output_dir_path = Path(output_dir_path)
@@ -193,20 +193,6 @@ def session_to_nwb(
         source_data[key] = dict(file_path=str(pcampi_file), channel_name=channel_name)
         conversion_options[key] = dict(stub_test=stub_test)
 
-    # Epoch + task (always present): one epoch spanning the pCampi recording and one task row for
-    # the condition, in the layout Spyglass reads, annotated with HED (see general_metadata.yaml).
-    # The task's cameras are the videos folder's camera subfolders (Camera1..6), the same names
-    # DANNCEConverter gives the camera Devices.
-    camera_names = (
-        sorted(path.name for path in videos_folder_path.iterdir() if path.is_dir())
-        if videos_folder_path.is_dir()
-        else []
-    )
-    source_data["TaskEpoch"] = dict(
-        pcampi_file_path=str(pcampi_file), task_metadata_key=condition, camera_names=camera_names
-    )
-    conversion_options["TaskEpoch"] = dict(stub_test=stub_test)
-
     # Raw Doric photometry (always present): one interface per channel, each writing a single
     # FiberPhotometryResponseSeries whose two columns are the NAc and TS ROIs (column-stacked
     # via a 2-element stream_names list; both ROIs under one excitation channel share the same
@@ -234,11 +220,10 @@ def session_to_nwb(
             )
             conversion_options[key] = dict(stub_test=stub_test)
 
-    # AD HOC, COMMENTED OUT BY DEFAULT. Hannah Phillips asked (2026-09-15) to exclude
-    # processed_dff.mat from the conversion until the lab confirms what dff_resG / dff_resG2
-    # represent and why their numeric scale is inconsistent across sessions (see
-    # interfaces/dff_fiber_photometry_interface.py's module docstring and
-    # documentation/conversion_notes.md, Open Questions).
+    # AD HOC, COMMENTED OUT BY DEFAULT. processed_dff.mat is left out of the conversion until it is
+    # clear what dff_resG / dff_resG2 represent and why their numeric scale differs across sessions
+    # (see interfaces/dff_fiber_photometry_interface.py's module docstring and
+    # docs/data_streams.md, Not converted).
     #
     # To use it: uncomment this block, the DffFiberPhotometryInterface import at the top of this
     # file, AND the fiber_photometry_dff_dopamine_signal block at the bottom of
@@ -266,8 +251,10 @@ def session_to_nwb(
     # index 1 the partner. The partner is treated as an external stimulus: its pose is written, but it gets no Subject.
     pose_key = "PoseEstimationDANNCE"
     partner_pose_key = "PoseEstimationDANNCEPartner"
+    # Camera Devices exist only when DANNCEConverter runs: one per videos subfolder (Camera1..6).
+    camera_names = []
     if dannce_mat.is_file() and videos_folder_path.is_dir():
-
+        camera_names = sorted(path.name for path in videos_folder_path.iterdir() if path.is_dir())
         source_data["DANNCE"] = dict(
             file_paths=str(dannce_mat),
             videos_folder_path=videos_folder_path,
@@ -285,7 +272,7 @@ def session_to_nwb(
         conversion_options["DANNCE"] = dict(stub_test=stub_test)
 
         if condition == "social":
-            # Same cameras as DANNCEConverter (camera_names, from the videos folder, above).
+            # Same cameras as DANNCEConverter (camera_names, from the videos folder).
             source_data["DANNCEPartner"] = dict(
                 file_paths=str(dannce_mat),
                 landmark_names=SDANNCE_LANDMARK_NAMES,
@@ -297,6 +284,15 @@ def session_to_nwb(
             if calibration_path.is_dir():
                 source_data["DANNCEPartner"]["calibration_path"] = str(calibration_path)
             conversion_options["DANNCEPartner"] = dict(stub_test=stub_test)
+
+    # Epoch + task (always present): one epoch spanning the pCampi recording and one task row for
+    # the condition, in the layout Spyglass reads, annotated with HED (see general_metadata.yaml).
+    # The task lists the camera Devices written above; Spyglass raises on a camera ID with no
+    # matching Device, so a session without DANNCE lists none.
+    source_data["TaskEpoch"] = dict(
+        pcampi_file_path=str(pcampi_file), task_metadata_key=condition, camera_names=camera_names
+    )
+    conversion_options["TaskEpoch"] = dict(stub_test=stub_test)
 
     # ── Instantiate converter ────────────────────────────────────────────────
     converter = Phillips2025NWBConverter(source_data=source_data, verbose=verbose)
@@ -499,13 +495,16 @@ if __name__ == "__main__":
         get_subject_metadata,
     )
 
-    _subject_meta = get_subject_metadata(
-        subject_id="M4", xlsx_path=Path("H:/Uchida-CN-data-share/Subject metadata.xlsx")
-    )
+    # Set these to your copy of the data share and to an output folder on the same drive (the NWB
+    # files link the videos by a relative path, which is not possible across drives).
+    data_share_path = Path("/path/to/Uchida-CN-data-share")
+    output_dir_path = Path("/path/to/nwbfiles")
+
+    _subject_meta = get_subject_metadata(subject_id="M4", xlsx_path=data_share_path / "Subject metadata.xlsx")
 
     session_to_nwb(
-        session_dir_path="H:/Uchida-CN-data-share/Hannah_data/M4-M7/Lone_data/day_1/M4",
-        output_dir_path="H:/uchida-nwbfiles",
+        session_dir_path=data_share_path / "Hannah_data" / "M4-M7" / "Lone_data" / "day_1" / "M4",
+        output_dir_path=output_dir_path,
         subject_metadata=_subject_meta,
         stub_test=False,
         verbose=True,
