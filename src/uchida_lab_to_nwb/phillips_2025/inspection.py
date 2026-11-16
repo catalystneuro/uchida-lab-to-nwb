@@ -116,7 +116,7 @@ def inspect_output_folder(output_dir_path: Union[str, Path]) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    output_dir_path = Path("H:/uchida-nwbfiles")
+    output_dir_path = Path("/path/to/nwbfiles")  # output folder of convert_all_sessions.py
 
     summary = inspect_output_folder(output_dir_path)
     print(summary.to_string(index=False))

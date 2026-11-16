@@ -173,7 +173,7 @@ class ProcessedFiberPhotometryInterface(BaseFiberPhotometryInterface):
         fiber_photometry_table = add_fiber_photometry_lab_metadata(nwbfile=nwbfile, metadata=metadata)
 
         data = stub(self._read_response_data())
-        timestamps = stub(self.get_timestamps())
+        timestamps = stub(self.temporal_alignment[self.metadata_key].get_times())
         timing_kwargs = self._timing_kwargs_from_timestamps(timestamps, always_write_timestamps)
 
         series_metadata = fiber_photometry_metadata[self.metadata_key]

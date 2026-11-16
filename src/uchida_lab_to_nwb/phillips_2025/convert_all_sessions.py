@@ -168,22 +168,18 @@ def dataset_to_nwb(
 
 
 if __name__ == "__main__":
-    dataset_to_nwb(
-        data_dir_path="H:/Uchida-CN-data-share/Hannah_data/M4-M7/Lone_data",
-        output_dir_path="H:/uchida-nwbfiles",
-        subject_metadata_path="H:/Uchida-CN-data-share/Subject metadata.xlsx",
-        max_workers=1,
-        stub_test=False,
-        overwrite=True,
-        verbose=True,
-    )
+    # Set these to your copy of the data share and to an output folder on the same drive (the NWB
+    # files link the videos by a relative path, which is not possible across drives).
+    data_share_path = Path("/path/to/Uchida-CN-data-share")
+    output_dir_path = Path("/path/to/nwbfiles")
 
-    dataset_to_nwb(
-        data_dir_path="H:/Uchida-CN-data-share/Hannah_data/M4-M7/Social_data",
-        output_dir_path="H:/uchida-nwbfiles",
-        subject_metadata_path="H:/Uchida-CN-data-share/Subject metadata.xlsx",
-        max_workers=1,
-        stub_test=False,
-        overwrite=True,
-        verbose=True,
-    )
+    for condition_folder_name in ("Lone_data", "Social_data"):
+        dataset_to_nwb(
+            data_dir_path=data_share_path / "Hannah_data" / "M4-M7" / condition_folder_name,
+            output_dir_path=output_dir_path,
+            subject_metadata_path=data_share_path / "Subject metadata.xlsx",
+            max_workers=1,
+            stub_test=False,
+            overwrite=True,
+            verbose=True,
+        )

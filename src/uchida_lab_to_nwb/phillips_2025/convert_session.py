@@ -135,7 +135,7 @@ def session_to_nwb(
     only interface that sets it). ``Phillips2025NWBConverter.temporally_align_data_interfaces()``
     (see ``nwbconverter.py``) aligns the raw and processed Doric fiber photometry interfaces, and
     the DANNCE pose + video interfaces, onto that same pCampi clock. See conversion_notes.md,
-    Temporal Alignment.
+    Temporal alignment.
     """
     session_dir_path = Path(session_dir_path)
     output_dir_path = Path(output_dir_path)
@@ -220,11 +220,10 @@ def session_to_nwb(
             )
             conversion_options[key] = dict(stub_test=stub_test)
 
-    # AD HOC, COMMENTED OUT BY DEFAULT. Hannah Phillips asked (2026-09-15) to exclude
-    # processed_dff.mat from the conversion until the lab confirms what dff_resG / dff_resG2
-    # represent and why their numeric scale is inconsistent across sessions (see
-    # interfaces/dff_fiber_photometry_interface.py's module docstring and
-    # documentation/conversion_notes.md, Open Questions).
+    # AD HOC, COMMENTED OUT BY DEFAULT. processed_dff.mat is left out of the conversion until it is
+    # clear what dff_resG / dff_resG2 represent and why their numeric scale differs across sessions
+    # (see interfaces/dff_fiber_photometry_interface.py's module docstring and
+    # documentation/conversion_notes.md, Known limitations).
     #
     # To use it: uncomment this block, the DffFiberPhotometryInterface import at the top of this
     # file, AND the fiber_photometry_dff_dopamine_signal block at the bottom of
@@ -496,13 +495,16 @@ if __name__ == "__main__":
         get_subject_metadata,
     )
 
-    _subject_meta = get_subject_metadata(
-        subject_id="M4", xlsx_path=Path("H:/Uchida-CN-data-share/Subject metadata.xlsx")
-    )
+    # Set these to your copy of the data share and to an output folder on the same drive (the NWB
+    # files link the videos by a relative path, which is not possible across drives).
+    data_share_path = Path("/path/to/Uchida-CN-data-share")
+    output_dir_path = Path("/path/to/nwbfiles")
+
+    _subject_meta = get_subject_metadata(subject_id="M4", xlsx_path=data_share_path / "Subject metadata.xlsx")
 
     session_to_nwb(
-        session_dir_path="H:/Uchida-CN-data-share/Hannah_data/M4-M7/Lone_data/day_1/M4",
-        output_dir_path="H:/uchida-nwbfiles",
+        session_dir_path=data_share_path / "Hannah_data" / "M4-M7" / "Lone_data" / "day_1" / "M4",
+        output_dir_path=output_dir_path,
         subject_metadata=_subject_meta,
         stub_test=False,
         verbose=True,
