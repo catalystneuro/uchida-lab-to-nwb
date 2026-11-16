@@ -182,20 +182,6 @@ def session_to_nwb(
         source_data[key] = dict(file_path=str(pcampi_file), channel_name=channel_name)
         conversion_options[key] = dict(stub_test=stub_test)
 
-    # Epoch + task (always present): one epoch spanning the pCampi recording and one task row for
-    # the condition, in the layout Spyglass reads, annotated with HED (see general_metadata.yaml).
-    # The task's cameras are the videos folder's camera subfolders (Camera1..6), the same names
-    # DANNCEConverter gives the camera Devices.
-    camera_names = (
-        sorted(path.name for path in videos_folder_path.iterdir() if path.is_dir())
-        if videos_folder_path.is_dir()
-        else []
-    )
-    source_data["TaskEpoch"] = dict(
-        pcampi_file_path=str(pcampi_file), task_metadata_key=condition, camera_names=camera_names
-    )
-    conversion_options["TaskEpoch"] = dict(stub_test=stub_test)
-
     # Raw Doric photometry (always present): one interface per channel, each writing a single
     # FiberPhotometryResponseSeries whose two columns are the NAc and TS ROIs (column-stacked
     # via a 2-element stream_names list; both ROIs under one excitation channel share the same
@@ -255,8 +241,10 @@ def session_to_nwb(
     # index 1 the partner. The partner is treated as an external stimulus: its pose is written, but it gets no Subject.
     pose_key = "PoseEstimationDANNCE"
     partner_pose_key = "PoseEstimationDANNCEPartner"
+    # Camera Devices exist only when DANNCEConverter runs: one per videos subfolder (Camera1..6).
+    camera_names = []
     if dannce_mat.is_file() and videos_folder_path.is_dir():
-
+        camera_names = sorted(path.name for path in videos_folder_path.iterdir() if path.is_dir())
         source_data["DANNCE"] = dict(
             file_paths=str(dannce_mat),
             videos_folder_path=videos_folder_path,
@@ -274,7 +262,7 @@ def session_to_nwb(
         conversion_options["DANNCE"] = dict(stub_test=stub_test)
 
         if condition == "social":
-            # Same cameras as DANNCEConverter (camera_names, from the videos folder, above).
+            # Same cameras as DANNCEConverter (camera_names, from the videos folder).
             source_data["DANNCEPartner"] = dict(
                 file_paths=str(dannce_mat),
                 landmark_names=SDANNCE_LANDMARK_NAMES,
@@ -286,6 +274,15 @@ def session_to_nwb(
             if calibration_path.is_dir():
                 source_data["DANNCEPartner"]["calibration_path"] = str(calibration_path)
             conversion_options["DANNCEPartner"] = dict(stub_test=stub_test)
+
+    # Epoch + task (always present): one epoch spanning the pCampi recording and one task row for
+    # the condition, in the layout Spyglass reads, annotated with HED (see general_metadata.yaml).
+    # The task lists the camera Devices written above; Spyglass raises on a camera ID with no
+    # matching Device, so a session without DANNCE lists none.
+    source_data["TaskEpoch"] = dict(
+        pcampi_file_path=str(pcampi_file), task_metadata_key=condition, camera_names=camera_names
+    )
+    conversion_options["TaskEpoch"] = dict(stub_test=stub_test)
 
     # ── Instantiate converter ────────────────────────────────────────────────
     converter = Phillips2025NWBConverter(source_data=source_data, verbose=verbose)

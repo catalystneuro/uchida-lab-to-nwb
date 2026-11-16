@@ -252,12 +252,13 @@ Each file has one epoch and one task, in the layout Spyglass reads (checked agai
   `task_environment` (`arena`), `camera_id`, `task_epochs` (`[1]`) and `HED`.
 - `camera_id` is a ragged integer column listing the 6 cameras, `[1, 2, 3, 4, 5, 6]`: the
   trailing digits of the camera Device names `Camera1`..`Camera6`, taken from the session's
-  videos folder. Spyglass resolves each ID against its `CameraDevice` entries and raises on an
-  unknown ID. Spyglass `master` only knows ndx-franklab-novela `CameraDevice`s named
+  videos folder when `DANNCEConverter` runs (it writes those Devices). Spyglass resolves each ID
+  against its `CameraDevice` entries and raises on an unknown ID. Spyglass `master` only knows ndx-franklab-novela `CameraDevice`s named
   `camera_device N`; the multi-camera branch (`ndx-pose-multicamera`, in the CatalystNeuro
   `uchida-integration` Spyglass branch) also maps `CalibratedCamera` names such as `Camera1` -> 1.
-- A session without videos writes `camera_id` as an empty string, which Spyglass reads as no
-  cameras (`list(row.camera_id)`). An empty ragged integer column would be the usual form, but
+- A session without DANNCE output (so without camera Devices, even if it has videos) writes
+  `camera_id` as an empty string, which Spyglass reads as no cameras (`list(row.camera_id)`). An
+  empty ragged integer column would be the usual form, but
   NWB Inspector 0.7.1 (3 checks raise `IndexError`) and ndx-hed 0.3.0's `HedNWBValidator`
   (`get_bids_dataframe` compares each cell to `""`) both crash on a zero-length column.
 - That same `get_bids_dataframe` comparison also fails on a cell holding more than one value
