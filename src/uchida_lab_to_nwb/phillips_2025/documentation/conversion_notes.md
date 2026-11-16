@@ -117,8 +117,7 @@ phillips_2025/
 │   └── subject_metadata.py       # get_subject_metadata() (reads Subject metadata.xlsx)
 └── documentation/
     ├── conversion_notes.md        # this file
-    ├── project_track.md           # conversion progress tracker
-    └── explore_sync_signals.py    # ad hoc exploration of the pCampi/Doric sync signals
+    └── project_track.md           # conversion progress tracker
 ```
 
 The example notebook for DANDI is `notebooks/dandi_001935_tutorial.ipynb` at the repo root.

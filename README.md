@@ -105,8 +105,7 @@ src/uchida_lab_to_nwb/
     ├── fiber_photometry.yaml                        # Fiber photometry hardware metadata
     └── documentation/
         ├── conversion_notes.md                      # Data streams, decisions, open questions
-        ├── project_track.md                         # Progress tracker
-        └── explore_sync_signals.py                  # Exploration of the pCampi and Doric sync signals
+        └── project_track.md                         # Progress tracker
 notebooks/
 ├── dandi_001935_tutorial.ipynb                      # Example notebook
 └── environment.yml

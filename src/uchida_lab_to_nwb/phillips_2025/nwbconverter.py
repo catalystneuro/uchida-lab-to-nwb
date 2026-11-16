@@ -121,7 +121,7 @@ class Phillips2025NWBConverter(NWBConverter):
 
     Temporal alignment: ``campy_trigger`` (pCampi/h5) and ``DigitalCh1`` (Doric/.doric, "DIO BNC |
     Ch.1") carry the same physical TTL pulse train on two independent 1 kHz clocks (see
-    ``documentation/explore_sync_signals.py``). ``temporally_align_data_interfaces()``:
+    ``documentation/conversion_notes.md``, Temporal Alignment). ``temporally_align_data_interfaces()``:
 
     - Reads ``DigitalCh1``'s raw trace directly off the already-instantiated ``DoricControl``
       interface (``DoricFiberPhotometryInterface._get_stream_data()``/``_get_stream_timestamps()``
