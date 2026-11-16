@@ -48,18 +48,17 @@ def _compute_doric_trigger_pulse_timestamps(
 ) -> np.ndarray:
     """Rising-edge timestamps of the Doric-side Campy-trigger signal, on Doric's own (unaligned) clock.
 
-    Mirrors the Uchida lab's own MATLAB alignment pipeline ``interpolate_campy_and_doric2_clean.m``:
-    it resamples each photometry trace onto these same trigger-pulse timestamps
-    -- see conversion_notes.md, Temporal Alignment.
+    Mirrors the Uchida lab's MATLAB alignment script ``interpolate_campy_and_doric2_clean.m``, which
+    resamples each photometry trace onto these same trigger-pulse timestamps (see
+    docs/data_streams.md, Time alignment).
 
-    ``DigitalCh1`` is already high at the very first Doric sample in every session inspected (its first
-    *falling* edge, read elsewhere for the pCampi<->Doric offset, is the marker pulse ending). The
-    MATLAB script counts that already-high first sample as an implicit extra rising edge
-    (``if dio1_triggers(1) == 1 -> campy_re = [1, <real rising edges>]``) and, empirically, keeps it
-    rather than dropping it as a spurious startup pulse: prepending it here (with no other filtering)
-    exactly reproduces ``interpolated_data``'s sample count in 9 of the 12 sessions in the share
-    (verified 2026-09-15); the remaining 3 land on the saved-video-frame grid instead (a separate,
-    already-documented lab-side inconsistency -- see conversion_notes.md, Open Questions).
+    ``DigitalCh1`` is already high at the first Doric sample in every session of the dataset (its first
+    falling edge, used for the pCampi<->Doric offset, is the end of the start-of-recording marker
+    pulse). The MATLAB script counts that already-high first sample as an extra rising edge
+    (``if dio1_triggers(1) == 1 -> campy_re = [1, <real rising edges>]``) and keeps it. Prepending it
+    here, with no other filtering, reproduces the sample count of ``interpolated_data`` in 9 of the 12
+    sessions. The other 3 sessions were resampled onto the saved video frames instead (see
+    docs/data_streams.md, Time alignment).
     """
     rising_edges = get_rising_frames_from_ttl(doric_digital_ch1_data)
     if doric_digital_ch1_data[0] == 1:
@@ -95,10 +94,10 @@ class Phillips2025NWBConverter(NWBConverter):
       via a 2-element ``stream_names`` list), sharing one ``FiberPhotometryTable``. Keys use
       functional roles rather than raw hardware channel names: EXC1 -> control (tdTomato),
       EXC2 -> dopamine_signal (GRABDA3m); ROI01 -> NAc, ROI02 -> TS.
-    - Processed{Control,DopamineSignal}: lab-processed fiber photometry, one
+    - InterpolatedFP{ControlSignal,DopamineSignal}: lab-processed fiber photometry, one
       ``ProcessedFiberPhotometryInterface`` per channel (interpolated_campy_and_doric.mat).
-      Raw ROI fluorescence (not dF/F); written to processing/ophys, reusing the
-      FiberPhotometryTable created by the raw Doric interfaces.
+      Raw ROI fluorescence (not dF/F) resampled to the camera triggers; written to
+      processing/ophys, reusing the FiberPhotometryTable created by the raw Doric interfaces.
     - DffDopamineSignal: lab-computed dF/F (processed_dff.mat), one ``DffFiberPhotometryInterface``.
       AD HOC / OFF BY DEFAULT -- see that interface's module docstring. Registered here, but
       ``convert_session.py`` never adds it to ``source_data`` -- the code that would (and the
@@ -115,10 +114,13 @@ class Phillips2025NWBConverter(NWBConverter):
     - DANNCEPartner: social sessions only. The partner rat's 3D pose (sDANNCE animal index 1; the
       implanted subject is index 0), as a second ``DANNCEInterface`` that reuses the camera Devices
       and videos written by ``DANNCE``, so it must come after ``DANNCE``.
+    - TaskEpoch: one epoch spanning the pCampi recording and one row in
+      ``processing/tasks/task_table``, in the layout Spyglass reads, annotated with HED
+      (``TaskEpochInterface``, ``interfaces/task_epoch_interface.py``).
 
     Temporal alignment: ``campy_trigger`` (pCampi/h5) and ``DigitalCh1`` (Doric/.doric, "DIO BNC |
     Ch.1") carry the same physical TTL pulse train on two independent 1 kHz clocks (see
-    ``documentation/explore_sync_signals.py``). ``temporally_align_data_interfaces()``:
+    ``docs/data_streams.md``, Time alignment). ``temporally_align_data_interfaces()``:
 
     - Reads ``DigitalCh1``'s raw trace directly off the already-instantiated ``DoricControl``
       interface (``DoricFiberPhotometryInterface._get_stream_data()``/``_get_stream_timestamps()``
@@ -128,22 +130,22 @@ class Phillips2025NWBConverter(NWBConverter):
       (``neuroconv.tools.signal_processing``). Each side's very
       first falling edge is the same physical event -- a start-of-recording marker pulse both
       systems emit once before their regular ~50 Hz train begins -- so subtracting the two directly
-      gives a single scalar offset (seconds), applied via ``set_aligned_starting_time()`` to the raw
+      gives a single scalar offset (seconds), applied via ``temporal_alignment.shift_times()`` to the raw
       Doric interfaces (``DoricControl``, ``DoricDopamineSignal``, which keep their real per-sample
       Doric-clock timestamps).
     - For the processed/interpolated interfaces (``InterpolatedFPControlSignal``,
       ``InterpolatedFPDopamineSignal``, and ``DffDopamineSignal`` when enabled):
       ``_compute_doric_trigger_pulse_timestamps()`` derives the Doric-side Campy-trigger rising-edge
-      timestamps (mirroring the lab's own MATLAB pipeline, ``interpolate_campy_and_doric2_clean.m``,
-      shared 2026-09-15), and -- when their count matches the interpolated data's sample count --
-      those per-sample timestamps (offset onto the pCampi clock) are written directly via
-      ``interface.alignment[metadata_key].set_times()``. In the sessions where the counts don't
-      match (the interpolated data landed on the saved-video-frame grid instead -- see
-      conversion_notes.md, Temporal Alignment), this falls back to the previous nominal-camera-rate
-      ``set_aligned_starting_time()`` shift, with a warning.
+      timestamps (mirroring the lab's MATLAB script ``interpolate_campy_and_doric2_clean.m``), and,
+      when their count matches the interpolated data's sample count, those per-sample timestamps
+      (offset onto the pCampi clock) are written directly via
+      ``interface.temporal_alignment[metadata_key].set_times()``. In the sessions where the counts
+      don't match (the interpolated data is on the saved video frames instead, see
+      docs/data_streams.md, Time alignment), the nominal camera-rate timestamps are shifted with
+      ``temporal_alignment.shift_times()``, with a warning.
     - Anchors ``DANNCE`` (pose + all 6 videos, which share one native "elapsed seconds since
       recording start" clock from each camera's ``frametimes.npy``) via
-      ``set_aligned_starting_time()`` to the first non-spurious **rising** edge of the pCampi
+      ``temporal_alignment.shift_times()`` to the first non-spurious **rising** edge of the pCampi
       ``campy_trigger`` train (``drop_spurious_leading_edges()`` applied to
       ``get_rising_frames_from_ttl()`` output, to skip past the marker pulse and land on the first
       real camera-trigger pulse) -- the pCampi-clock time of that first real trigger. This is
@@ -154,12 +156,12 @@ class Phillips2025NWBConverter(NWBConverter):
 
     # DANNCE must run first: NWBConverter.add_to_nwbfile() iterates data_interface_objects in this
     # dict's order, and DoricFiberPhotometryInterface.add_to_nwbfile() calls neuroconv's
-    # add_fiber_photometry_devices(), which (as of neuroconv#<ISSUE_NUMBER>) blindly creates a plain
-    # Device for *every* entry in the shared metadata["Devices"] registry -- including DANNCE's
-    # Camera1..6 -- not just the fiber-photometry-owned ones. Device creation is idempotent on name
-    # (an existing device is returned unchanged), so running DANNCE first lets it create the real
-    # ndx_pose.CalibratedCamera Devices before add_fiber_photometry_devices() gets a chance to shadow
-    # them with plain Devices. Remove this ordering requirement once the upstream bug is fixed.
+    # add_fiber_photometry_devices(), which (in the pinned neuroconv main) creates a plain Device for
+    # every entry in the shared metadata["Devices"] registry, including DANNCE's Camera1..6, not just
+    # the fiber photometry ones. Device creation is idempotent on name (an existing device is
+    # returned unchanged), so running DANNCE first lets it create the ndx_pose.CalibratedCamera
+    # Devices before add_fiber_photometry_devices() can shadow them with plain Devices. This
+    # ordering can be dropped once neuroconv only creates the fiber photometry devices.
     data_interface_classes = dict(
         DANNCE=DANNCEConverter,
         DANNCEPartner=DANNCEInterface,
@@ -175,6 +177,12 @@ class Phillips2025NWBConverter(NWBConverter):
     )
 
     def temporally_align_data_interfaces(self, metadata: dict | None = None, conversion_options: dict | None = None):
+        """Align the photometry and DANNCE interfaces to the pCampi clock (see the class docstring).
+
+        Does nothing if the session has no pCampi ``campy_trigger`` or no raw Doric file. Times are
+        set through each interface's ``temporal_alignment``: ``shift_times`` for a rigid shift onto
+        the pCampi clock, ``[key].set_times`` for per-sample times.
+        """
         campy_trigger = self.data_interface_objects.get("PCampiSyncCampyTrigger")
         doric_control = self.data_interface_objects.get("DoricControl")
         if campy_trigger is None or doric_control is None:
@@ -202,7 +210,7 @@ class Phillips2025NWBConverter(NWBConverter):
             if key in _PROCESSED_PHOTOMETRY_INTERFACE_KEYS:
                 n_samples = len(interface.get_original_timestamps())
                 if n_samples == len(doric_trigger_pulse_times):
-                    interface.alignment[interface.metadata_key].set_times(
+                    interface.temporal_alignment[interface.metadata_key].set_times(
                         doric_trigger_pulse_times + doric_to_pcampi_offset
                     )
                     continue
@@ -210,17 +218,19 @@ class Phillips2025NWBConverter(NWBConverter):
                     f"{key}: interpolated_campy_and_doric.mat has {n_samples} samples but "
                     f"{len(doric_trigger_pulse_times)} Doric Campy-trigger pulses were found for "
                     "this session -- falling back to nominal camera-rate timestamps for this "
-                    "interface (see conversion_notes.md, Temporal Alignment)."
+                    "interface (see docs/data_streams.md, Time alignment)."
                 )
-            interface.set_aligned_starting_time(doric_to_pcampi_offset)
+            interface.temporal_alignment.shift_times(doric_to_pcampi_offset)
 
         dannce = self.data_interface_objects.get("DANNCE")
         if dannce is not None:
             pcampi_rising_edge_times = get_rising_frames_from_ttl(pcampi_data) / pcampi_sampling_freq
             first_real_rising_edge = drop_spurious_leading_edges(pcampi_rising_edge_times)[0]
+            # The pose and video times start at 0 on the camera clock (frame index / frame rate and
+            # frametimes.npy), so shifting them by the first trigger puts frame 0 at that trigger.
             for sub_interface in dannce.data_interface_objects.values():
-                sub_interface.set_aligned_starting_time(first_real_rising_edge)
+                sub_interface.temporal_alignment.shift_times(first_real_rising_edge)
             # The partner's pose comes from the same sDANNCE file, so it shares the subject's clock.
             dannce_partner = self.data_interface_objects.get("DANNCEPartner")
             if dannce_partner is not None:
-                dannce_partner.set_aligned_starting_time(first_real_rising_edge)
+                dannce_partner.temporal_alignment.shift_times(first_real_rising_edge)

@@ -8,9 +8,9 @@ from zoneinfo import ZoneInfo
 
 _TIMEZONE = ZoneInfo("America/New_York")
 
-# Per-subject fiber implant hemisphere -- not in Subject metadata.xlsx; confirmed by Hannah
-# Phillips by email ahead of the 2026-09-15 midway meeting. Used to fill in the placeholder
-# hemisphere/ML-sign in fiber_photometry.yaml's optical_fiber_{NAc,TS} entries.
+# Per-subject fiber implant hemisphere, which is not in Subject metadata.xlsx. Used to fill in the
+# placeholder hemisphere and ML sign of fiber_photometry.yaml's optical_fiber_{NAc,TS} entries.
+# Add an entry here for each new subject.
 _SUBJECT_FIBER_HEMISPHERES = {
     "M4": {"NAc": "right", "TS": "left"},
     "M5": {"NAc": "right", "TS": "left"},
@@ -117,9 +117,7 @@ def _parse_subject_row(raw: dict) -> dict:
     species = str(raw.get("Species", "Rattus norvegicus")).strip()
 
     weight_raw = raw.get("Weight at time of experiment")
-    weight_str = (
-        None if (weight_raw is None or str(weight_raw).lower() == "not available") else str(weight_raw)
-    )
+    weight_str = None if (weight_raw is None or str(weight_raw).lower() == "not available") else str(weight_raw)
 
     desc_parts = [f"Experimental group: {exp_group}.", f"Strain: {strain_raw}."]
     if surgery_str:
@@ -146,6 +144,6 @@ def _parse_subject_row(raw: dict) -> dict:
 
 
 if __name__ == "__main__":
-    xlsx_path = Path("H:/Uchida-CN-data-share/Subject metadata.xlsx")
+    xlsx_path = Path("/path/to/Uchida-CN-data-share/Subject metadata.xlsx")
     metadata = get_subject_metadata(subject_id="M4", xlsx_path=xlsx_path)
     print(metadata)

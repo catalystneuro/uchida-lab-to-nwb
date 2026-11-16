@@ -17,5 +17,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install uv && uv pip install --system -e ".[phillips_2025]"
+      - run: pip install uv && uv pip install --system -e "."
       - run: python -c "import uchida_lab_to_nwb"

@@ -3,28 +3,21 @@
 # frequency-multiplexed LED excitation channels and up to three fiber-coupled
 # ROIs imaged on a single BFPD CMOS camera.
 #
-# Naming convention: metadata keys use functional roles, not raw hardware channel
-# names (confirmed with the team, 2026-07-23):
+# Naming convention: metadata keys use functional roles, not raw hardware channel names:
 #   EXC1 (568 nm) → "control" (tdTomato, control fluorophore)
 #   EXC2 (473 nm) → "dopamine_signal" (GRABDA3m, dopamine sensor)
 #   ROI01 → "NAc" (Nucleus Accumbens)
 #   ROI02 → "TS" (Tail of Striatum)
+#   ROI03 → not converted (only 2 fiber implants)
 #
-# Confirmed by Hannah Phillips (2026-05-06):
-#   EXC1 = 568 nm (tdTomato excitation), 50 µW at fiber tip
-#   EXC2 = 473 nm (GRABDA3m excitation), 50 µW at fiber tip
-#   BBC300 CMOS camera, wavelength range 350–1100 nm, gain 0 dB (1.0×)
-#   ROI01 → NAc, ROI02 → TS
-#   ROI03 → purpose unknown (only 2 implants confirmed; needs clarification with lab)
-#   Indicators: GRABDA3m (dopamine sensor) + tdTomato (control fluorophore), co-injected
-#   Fiber implant hemisphere: randomized per animal, so left as a placeholder ("unknown", no ML
-#   sign) in this shared static file -- convert_session.py fills in the real hemisphere and ML
-#   sign per subject (utils/subject_metadata.py::get_subject_fiber_hemispheres()), confirmed by
-#   Hannah Phillips ahead of the 2026-09-15 midway meeting: M4 NAc=right/TS=left,
-#   M5 NAc=right/TS=left, M7 NAc=left/TS=right.
+# Hardware: EXC1 = 568 nm and EXC2 = 473 nm, 50 µW each at the fiber tip; BBC300 CMOS camera,
+# wavelength range 350–1100 nm, gain 0 dB (1.0×). GRABDA3m and tdTomato are co-injected.
 #
-# Schema note: DeviceModels/Devices are top-level registries (neuroconv >= the
-# `add-dannce-interface`-era fiber photometry rewrite); FiberPhotometryTable rows and
+# The fiber implant hemisphere is randomized per animal, so this file holds a placeholder
+# ("unknown", no ML sign). convert_session.py fills in the hemisphere and ML sign per subject from
+# utils/subject_metadata.py::get_subject_fiber_hemispheres().
+#
+# Schema note: DeviceModels/Devices are top-level registries; FiberPhotometryTable rows and
 # per-series entries reference them by `*_metadata_key`. Each raw
 # FiberPhotometryResponseSeries entry below is keyed by the `metadata_key` passed
 # explicitly to its DoricFiberPhotometryInterface instance in convert_session.py.
@@ -127,11 +120,9 @@ Devices:
       simultaneously.
     device_model_metadata_key: doric_bfpd_model
 
-  # Hemisphere is randomized per animal, so this shared static file only carries the ML
-  # magnitude (confirmed) with a placeholder sign/hemisphere; convert_session.py overrides both
-  # per subject (utils/subject_metadata.py::get_subject_fiber_hemispheres()) from Hannah
-  # Phillips's confirmation ahead of the 2026-09-15 midway meeting: M4 NAc=right/TS=left,
-  # M5 NAc=right/TS=left, M7 NAc=left/TS=right.
+  # Hemisphere is randomized per animal, so this file only carries the ML magnitude, with a
+  # placeholder sign and hemisphere; convert_session.py sets both per subject
+  # (utils/subject_metadata.py::get_subject_fiber_hemispheres()).
   # AP/ML coordinates are absolute distances from bregma (AP = anterior).
 
   optical_fiber_NAc:
@@ -169,11 +160,8 @@ Devices:
       insertion_angle_pitch_in_deg: 0.0
       insertion_angle_roll_in_deg: 0.0
 
-  # - name: optical_fiber_ROI03
-  #   Optical fiber for ROI03. Purpose unknown — Doric file contains 3 ROI
-  #   signals per excitation channel but only 2 fiber implants (NAc and TS)
-  #   are confirmed. Coordinates and brain region TBD pending clarification
-  #   with Hannah Phillips.
+  # ROI03: the Doric file holds 3 ROI signals per excitation channel, but there are only 2 fiber
+  # implants (NAc and TS), so ROI03 has no fiber and is not converted.
 
 # ── Fiber photometry container (indicators, table, per-series metadata) ─────
 # GRABDA3m and tdTomato are co-injected at both ROI sites (NAc and TS).
@@ -245,8 +233,7 @@ FiberPhotometry:
         optical_fiber_metadata_key: optical_fiber_TS
         excitation_source_metadata_key: excitation_source_dopamine_signal
         photodetector_metadata_key: photodetector_BFPD
-      # row_control_ROI03: / row_dopamine_signal_ROI03:
-      #   ROI03 purpose TBD — only 2 implants confirmed by Hannah.
+      # No ROI03 rows: ROI03 is not converted (see the Devices section).
 
   # ── FiberPhotometryResponseSeries (raw acquisition) ───────────────────────
   # One series per channel; each series' 2 columns are the NAc and TS ROIs (column-stacked
@@ -307,9 +294,9 @@ FiberPhotometry:
   # use the interface; convert_session.py trims fiber_photometry_table_region to a single row
   # (NAc only) at runtime for M4 sessions, which have no dff_resG2.
   #
-  # Row mapping is an UNCONFIRMED ASSUMPTION, not confirmed by the lab: dff_resG -> NAc,
-  # dff_resG2 -> TS. dff_resG2 is present only for M5/M7 sessions (8 of 12 in the share); M4
-  # sessions have only dff_resG.
+  # The row mapping is an unverified assumption: dff_resG -> NAc, dff_resG2 -> TS. Check it
+  # before enabling. dff_resG2 is present only in M5/M7 sessions (8 of 12); M4 sessions have only
+  # dff_resG.
   #
   # fiber_photometry_dff_dopamine_signal:
   #   name: FiberPhotometryDffDopamineSignal
