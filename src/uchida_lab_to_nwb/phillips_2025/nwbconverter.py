@@ -50,7 +50,7 @@ def _compute_doric_trigger_pulse_timestamps(
 
     Mirrors the Uchida lab's MATLAB alignment script ``interpolate_campy_and_doric2_clean.m``, which
     resamples each photometry trace onto these same trigger-pulse timestamps (see
-    conversion_notes.md, Temporal alignment).
+    docs/data_streams.md, Time alignment).
 
     ``DigitalCh1`` is already high at the first Doric sample in every session of the dataset (its first
     falling edge, used for the pCampi<->Doric offset, is the end of the start-of-recording marker
@@ -58,7 +58,7 @@ def _compute_doric_trigger_pulse_timestamps(
     (``if dio1_triggers(1) == 1 -> campy_re = [1, <real rising edges>]``) and keeps it. Prepending it
     here, with no other filtering, reproduces the sample count of ``interpolated_data`` in 9 of the 12
     sessions. The other 3 sessions were resampled onto the saved video frames instead (see
-    conversion_notes.md, Temporal alignment).
+    docs/data_streams.md, Time alignment).
     """
     rising_edges = get_rising_frames_from_ttl(doric_digital_ch1_data)
     if doric_digital_ch1_data[0] == 1:
@@ -120,7 +120,7 @@ class Phillips2025NWBConverter(NWBConverter):
 
     Temporal alignment: ``campy_trigger`` (pCampi/h5) and ``DigitalCh1`` (Doric/.doric, "DIO BNC |
     Ch.1") carry the same physical TTL pulse train on two independent 1 kHz clocks (see
-    ``documentation/conversion_notes.md``, Temporal alignment). ``temporally_align_data_interfaces()``:
+    ``docs/data_streams.md``, Time alignment). ``temporally_align_data_interfaces()``:
 
     - Reads ``DigitalCh1``'s raw trace directly off the already-instantiated ``DoricControl``
       interface (``DoricFiberPhotometryInterface._get_stream_data()``/``_get_stream_timestamps()``
@@ -141,7 +141,7 @@ class Phillips2025NWBConverter(NWBConverter):
       (offset onto the pCampi clock) are written directly via
       ``interface.temporal_alignment[metadata_key].set_times()``. In the sessions where the counts
       don't match (the interpolated data is on the saved video frames instead, see
-      conversion_notes.md, Temporal alignment), the nominal camera-rate timestamps are shifted with
+      docs/data_streams.md, Time alignment), the nominal camera-rate timestamps are shifted with
       ``temporal_alignment.shift_times()``, with a warning.
     - Anchors ``DANNCE`` (pose + all 6 videos, which share one native "elapsed seconds since
       recording start" clock from each camera's ``frametimes.npy``) via
@@ -218,7 +218,7 @@ class Phillips2025NWBConverter(NWBConverter):
                     f"{key}: interpolated_campy_and_doric.mat has {n_samples} samples but "
                     f"{len(doric_trigger_pulse_times)} Doric Campy-trigger pulses were found for "
                     "this session -- falling back to nominal camera-rate timestamps for this "
-                    "interface (see conversion_notes.md, Temporal alignment)."
+                    "interface (see docs/data_streams.md, Time alignment)."
                 )
             interface.temporal_alignment.shift_times(doric_to_pcampi_offset)
 

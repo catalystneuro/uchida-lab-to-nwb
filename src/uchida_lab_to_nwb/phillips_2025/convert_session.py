@@ -134,8 +134,8 @@ def session_to_nwb(
     ``NWBFile.session_start_time`` is set from the pCampi filename (``PCampiSyncInterface`` is the
     only interface that sets it). ``Phillips2025NWBConverter.temporally_align_data_interfaces()``
     (see ``nwbconverter.py``) aligns the raw and processed Doric fiber photometry interfaces, and
-    the DANNCE pose + video interfaces, onto that same pCampi clock. See conversion_notes.md,
-    Temporal alignment.
+    the DANNCE pose + video interfaces, onto that same pCampi clock. See docs/data_streams.md,
+    Time alignment.
     """
     session_dir_path = Path(session_dir_path)
     output_dir_path = Path(output_dir_path)
@@ -223,7 +223,7 @@ def session_to_nwb(
     # AD HOC, COMMENTED OUT BY DEFAULT. processed_dff.mat is left out of the conversion until it is
     # clear what dff_resG / dff_resG2 represent and why their numeric scale differs across sessions
     # (see interfaces/dff_fiber_photometry_interface.py's module docstring and
-    # documentation/conversion_notes.md, Known limitations).
+    # docs/data_streams.md, Not converted).
     #
     # To use it: uncomment this block, the DffFiberPhotometryInterface import at the top of this
     # file, AND the fiber_photometry_dff_dopamine_signal block at the bottom of
