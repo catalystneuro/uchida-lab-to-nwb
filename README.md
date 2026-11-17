@@ -58,7 +58,7 @@ The Phillips 2025 conversion, in [phillips_2025/docs/](src/uchida_lab_to_nwb/phi
 - [Data streams](src/uchida_lab_to_nwb/phillips_2025/docs/data_streams.md): raw and processed signals, pose and video, and how their times are aligned.
 - [Metadata](src/uchida_lab_to_nwb/phillips_2025/docs/metadata.md): editing the metadata files, adding a subject or a condition, ontology terms.
 - [NWB file structure](src/uchida_lab_to_nwb/phillips_2025/docs/nwb_file_structure.md): what is stored where, and how to read a file.
-- [Spyglass ingestion](src/uchida_lab_to_nwb/phillips_2025/docs/spyglass_ingestion.md)
+- [Spyglass ingestion](src/uchida_lab_to_nwb/phillips_2025/docs/spyglass_ingestion.md): setting up Spyglass, ingesting the files, and the Spyglass notebooks.
 - [DANDI staging](src/uchida_lab_to_nwb/phillips_2025/docs/dandi_staging.md): organizing, validating and uploading the files.
 - [Troubleshooting](src/uchida_lab_to_nwb/phillips_2025/docs/troubleshooting.md): conversion errors and known issues.
 
@@ -81,6 +81,7 @@ src/uchida_lab_to_nwb/phillips_2025/
 └── docs/                     documentation of this conversion
 docs/                         documentation of the conversion pipeline in general
 notebooks/                    example notebook
+spyglass/                     Spyglass environment, ingestion script and notebooks (see Spyglass ingestion)
 ```
 
 ## Citation

@@ -8,6 +8,6 @@ and extend it. For the conversion pipeline in general, see the [repository docs]
 3. [Data streams](data_streams.md): raw and processed signals, pose and video, and how their times are aligned.
 4. [Metadata](metadata.md): editing the metadata files, adding a subject or a condition, ontology terms.
 5. [NWB file structure](nwb_file_structure.md): what is stored where, and how to read a file.
-6. [Spyglass ingestion](spyglass_ingestion.md)
+6. [Spyglass ingestion](spyglass_ingestion.md): setting up Spyglass, ingesting the files, and the Spyglass notebooks.
 7. [DANDI staging](dandi_staging.md): organizing, validating and uploading the files.
 8. [Troubleshooting](troubleshooting.md): conversion errors and known issues.
