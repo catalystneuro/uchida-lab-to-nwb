@@ -1,13 +1,15 @@
 # Conda environment for ingesting the converted DANDI:001935 NWB files into Spyglass.
 #
-# Spyglass comes from the `uchida-integration` branch of the CatalystNeuro fork
-# (https://github.com/catalystneuro/spyglass), which merges upstream `master` with the
-# changes these files need, each on its own branch of the fork:
-#   - fiber photometry: LorenFrankLab/spyglass#1637 (branch feature/fiber-photometry-ingestion)
-#   - multi-camera 3D pose, calibrated and plain-Device cameras: ndx-pose-multicamera
-#     (https://github.com/catalystneuro/spyglass/pull/1)
-#   - HERD external resources: herd-external-resources (https://github.com/catalystneuro/spyglass/pull/2)
-#   - HED annotations: hed-annotations
+# Spyglass comes from the `uchida-example-v1` tag of the CatalystNeuro fork
+# (https://github.com/catalystneuro/spyglass), so this install doesn't change when branches
+# move. The tag merges upstream `master` (da36473c) with the PRs these files need, which are
+# open on LorenFrankLab/spyglass:
+#   - fiber photometry: https://github.com/LorenFrankLab/spyglass/pull/1637
+#   - calibrated and plain-Device cameras, rate-based external videos: https://github.com/LorenFrankLab/spyglass/pull/1721
+#   - HERD external resources: https://github.com/LorenFrankLab/spyglass/pull/1722
+#   - HED annotations: https://github.com/LorenFrankLab/spyglass/pull/1723
+#   - multi-camera 3D pose and camera calibration: https://github.com/LorenFrankLab/spyglass/pull/1724
+# See src/uchida_lab_to_nwb/phillips_2025/docs/spyglass_ingestion.md.
 #
 # Create it with bootstrap_wsl.sh, not `conda env create` alone: the script creates it from
 # this file and then installs the pins below, which pip cannot resolve together with the
@@ -40,7 +42,7 @@ dependencies:
   - hdf5
   - git
   - pip:
-      - "git+https://github.com/catalystneuro/spyglass.git@uchida-integration"
+      - "git+https://github.com/catalystneuro/spyglass.git@uchida-example-v1"
       - ndx-fiber-photometry==0.2.3
       - ndx-franklab-novela==0.2.4
       - pyyaml

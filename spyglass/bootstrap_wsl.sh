@@ -15,7 +15,7 @@ set -euo pipefail
 MINIFORGE=/opt/miniforge3
 ENV_YAML="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/spyglass-env.yaml"
 ENV_NAME="${1:-spyglass-uchida-lab-env}"
-SPYGLASS="git+https://github.com/catalystneuro/spyglass.git@uchida-integration"
+SPYGLASS="git+https://github.com/catalystneuro/spyglass.git@uchida-example-v1"
 
 source "${MINIFORGE}/etc/profile.d/conda.sh"
 
@@ -32,7 +32,7 @@ fi
 # warnings instead of refusing to install.
 PIP="conda run -n ${ENV_NAME} python -m pip"
 
-echo "=== latest uchida-integration Spyglass (pip keeps an installed copy otherwise) ==="
+echo "=== Spyglass at tag uchida-example-v1 (pip keeps an installed copy otherwise) ==="
 ${PIP} install --force-reinstall --no-deps "${SPYGLASS}"
 
 echo "=== pynwb/hdmf for NWB 2.11, ndx-pose 0.4.0, ndx-hed (numpy 2, so scipy>=1.13) ==="

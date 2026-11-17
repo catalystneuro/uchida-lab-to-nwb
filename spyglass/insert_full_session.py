@@ -4,9 +4,10 @@ Runs every common table, then prints row counts per table and the InsertError lo
 each file. Errors are collected with raise_err=False so one run shows every table that
 fails.
 
-Needs a Spyglass build with fiber photometry and multi-camera pose support, e.g. the
-`uchida-integration` branch of https://github.com/catalystneuro/spyglass installed in the
-WSL env. Run from this directory, passing NWB file names in the Spyglass raw dir:
+Needs the Spyglass build that bootstrap_wsl.sh installs (tag `uchida-example-v1` of
+https://github.com/catalystneuro/spyglass, with fiber photometry, camera, pose, HERD and HED
+support); see src/uchida_lab_to_nwb/phillips_2025/docs/spyglass_ingestion.md. Run from this
+directory, passing NWB file names in the Spyglass raw dir:
 
     conda activate spyglass-uchida-lab-env
     python insert_full_session.py sub-M4_ses-day-1-lone.nwb sub-M4_ses-day-1-social.nwb
@@ -24,7 +25,6 @@ dj.conn(use_tls=False)
 
 import spyglass.common as sgc  # noqa: E402
 import spyglass.data_import as sgi  # noqa: E402
-from spyglass.common.common_events import ImportedEvents  # noqa: E402
 from spyglass.common.common_usage import InsertError  # noqa: E402
 from spyglass.position.v1.imported_multicam_pose import (  # noqa: E402
     CameraCalibration,
@@ -45,7 +45,6 @@ PER_FILE_TABLES = (
     ImportedMultiCameraPose.BodyPart,
     ImportedMultiCameraPose.Camera,
     ImportedPose,
-    ImportedEvents,
     sgc.FiberPhotometryConfig,
     sgc.FiberPhotometryResponseSeries,
     sgc.FiberPhotometryResponseSeries.Fiber,
@@ -104,6 +103,8 @@ def ingest(nwb_file_name: str) -> None:
     section(f"Row counts for {nwb_file_name}")
     for table in PER_FILE_TABLES:
         print(f"{table_name(table):<45} {len(table() & copy_dict)}")
+    uncalibrated = ImportedMultiCameraPose.Camera() & copy_dict & "camera_name IS NULL"
+    print(f"{'  of which without calibration':<45} {len(uncalibrated)}")
     print("-- shared tables (whole DB) --")
     for table in SHARED_TABLES:
         print(f"{table_name(table):<45} {len(table())}")
