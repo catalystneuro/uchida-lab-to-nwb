@@ -15,6 +15,9 @@ nwb_stub/
 .env
 *.log
 
+# Spyglass ingestion: local DB credentials + paths
+src/uchida_lab_to_nwb/phillips_2025/spyglass/dj_local_conf.json
+
 # OS
 .DS_Store
 Thumbs.db
@@ -27,5 +30,3 @@ Thumbs.db
 hannah_metadata_request.md
 testing.ipynb
 midway_review.html
-# Spyglass ingestion: local DB credentials + paths
-spyglass/dj_local_conf.json
