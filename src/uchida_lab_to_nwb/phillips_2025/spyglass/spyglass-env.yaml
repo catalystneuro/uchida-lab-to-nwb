@@ -31,7 +31,7 @@
 #      insert_sessions() imports Spyglass's spike-sorting modules. kachery-cloud wants
 #      pubnub>=7.2, Spyglass wants pubnub<6.4; re-pinning pubnub keeps both importable.
 #
-#   wsl -d Ubuntu-24.04 -- bash /mnt/c/<path to repo>/spyglass/bootstrap_wsl.sh
+#   wsl -d Ubuntu-24.04 -- bash /mnt/c/<path to repo>/src/uchida_lab_to_nwb/phillips_2025/spyglass/bootstrap_wsl.sh
 
 name: spyglass-uchida-lab-env
 channels:

@@ -10,7 +10,7 @@ Upstream Spyglass doesn't ingest most of this yet. The missing pieces are open p
 [CatalystNeuro fork](https://github.com/catalystneuro/spyglass), which combines upstream `master` with those PRs.
 Tables from open PRs can change in review; section 5 explains how to update.
 
-Everything is in [spyglass/](../../../../spyglass/):
+Everything is in [src/uchida_lab_to_nwb/phillips_2025/spyglass/](../spyglass/):
 
 - `docker-compose.yml`: the local MySQL database;
 - `spyglass-env.yaml` and `bootstrap_wsl.sh`: the conda environment;
@@ -45,7 +45,7 @@ Desktop doesn't start it again after a reboot; then run `docker start spyglass-u
 From a Windows terminal:
 
 ```bash
-wsl -d Ubuntu-24.04 -- bash /mnt/c/<path to repo>/spyglass/bootstrap_wsl.sh
+wsl -d Ubuntu-24.04 -- bash /mnt/c/<path to repo>/src/uchida_lab_to_nwb/phillips_2025/spyglass/bootstrap_wsl.sh
 ```
 
 This creates the `spyglass-uchida-lab-env` conda env from `spyglass-env.yaml`, or updates it if it exists, and then
@@ -72,7 +72,7 @@ is imported. Check the setup with:
 
 ```bash
 conda activate spyglass-uchida-lab-env
-cd /mnt/c/<path to repo>/spyglass
+cd /mnt/c/<path to repo>/src/uchida_lab_to_nwb/phillips_2025/spyglass
 python check_connection.py
 ```
 
@@ -132,18 +132,18 @@ files; the tables' fetch methods (such as `FiberPhotometryResponseSeries.fetch1_
 
 ## 4. Notebooks
 
-The notebooks in [spyglass/notebooks/](../../../../spyglass/notebooks/) read the database, so ingest the files first.
+The notebooks in [spyglass/notebooks/](../spyglass/notebooks/) read the database, so ingest the files first.
 Open them with the `spyglass-uchida-lab-env` kernel, from Jupyter started in WSL or from VS Code connected to WSL. Each
 loads `../dj_local_conf.json` in its first cell.
 
-- [spyglass_fiber_photometry_tutorial.ipynb](../../../../spyglass/notebooks/spyglass_fiber_photometry_tutorial.ipynb):
+- [spyglass_fiber_photometry_tutorial.ipynb](../spyglass/notebooks/spyglass_fiber_photometry_tutorial.ipynb):
   the photometry setup of each session (indicators, excitation sources, fibers and brain regions), the raw and
   interpolated traces, and a comparison of all sessions.
-- [spyglass_pose_tutorial.ipynb](../../../../spyglass/notebooks/spyglass_pose_tutorial.ipynb): the pose entries,
+- [spyglass_pose_tutorial.ipynb](../spyglass/notebooks/spyglass_pose_tutorial.ipynb): the pose entries,
   cameras, videos and calibrations of each session, the 3D keypoints of a lone and a social session, and the keypoints
   projected onto video frames. The frames are read from the videos on the lab data share: set `DATA_SHARE` in its
   setup cell to the folder that holds `Uchida-CN-data-share` (`/mnt/h` for the H: drive).
-- [spyglass_hed_herd_tutorial.ipynb](../../../../spyglass/notebooks/spyglass_hed_herd_tutorial.ipynb): the ontology
+- [spyglass_hed_herd_tutorial.ipynb](../spyglass/notebooks/spyglass_hed_herd_tutorial.ipynb): the ontology
   terms linked to subjects, brain regions and keypoints, and the HED annotation of each session's task condition,
   validated against the HED schema.
 
@@ -163,7 +163,7 @@ The tables used here come from these pull requests on LorenFrankLab/spyglass:
 
 Upstream Spyglass also needs pynwb 4 to read these files
 ([#1694](https://github.com/LorenFrankLab/spyglass/issues/1694)); the bootstrap installs it over Spyglass's pins. The
-current state of each PR is in [spyglass-ingestion-notes.md](../../../../spyglass/spyglass-ingestion-notes.md) and in
+current state of each PR is in [spyglass-ingestion-notes.md](../spyglass/spyglass-ingestion-notes.md) and in
 [issue #13](https://github.com/catalystneuro/uchida-lab-to-nwb/issues/13).
 
 The pose tables of #1724 are the most likely to change: the PR asks the Spyglass team whether they should move onto

@@ -78,10 +78,10 @@ src/uchida_lab_to_nwb/phillips_2025/
 ├── upload_to_DANDI.py        organizing and uploading to DANDI
 ├── general_metadata.yaml     experiment, tasks, HED and ontology terms
 ├── fiber_photometry.yaml     fiber photometry devices, indicators and series
-└── docs/                     documentation of this conversion
+├── docs/                     documentation of this conversion
+└── spyglass/                 Spyglass environment, ingestion script and notebooks (see Spyglass ingestion)
 docs/                         documentation of the conversion pipeline in general
 notebooks/                    example notebook
-spyglass/                     Spyglass environment, ingestion script and notebooks (see Spyglass ingestion)
 ```
 
 ## Citation

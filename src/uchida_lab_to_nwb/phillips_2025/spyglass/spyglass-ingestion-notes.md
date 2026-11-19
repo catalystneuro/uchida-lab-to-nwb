@@ -1,6 +1,6 @@
 # Spyglass ingestion notes
 
-Tracks the Spyglass pull requests and issues that ingesting the DANDI:001935 files depends on, while they are under development. Remove this file once they are all merged into LorenFrankLab/spyglass and the environment installs a Spyglass release. How to set up Spyglass, ingest the files and run the notebooks is in [docs/spyglass_ingestion.md](../src/uchida_lab_to_nwb/phillips_2025/docs/spyglass_ingestion.md). The overview for the Spyglass team is https://github.com/catalystneuro/uchida-lab-to-nwb/issues/13.
+Tracks the Spyglass pull requests and issues that ingesting the DANDI:001935 files depends on, while they are under development. Remove this file once they are all merged into LorenFrankLab/spyglass and the environment installs a Spyglass release. How to set up Spyglass, ingest the files and run the notebooks is in [docs/spyglass_ingestion.md](../docs/spyglass_ingestion.md). The overview for the Spyglass team is https://github.com/catalystneuro/uchida-lab-to-nwb/issues/13.
 
 Check the live state of each link before acting on it.
 

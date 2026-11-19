@@ -16,7 +16,7 @@ nwb_stub/
 *.log
 
 # Spyglass ingestion: local DB credentials + paths
-spyglass/dj_local_conf.json
+src/uchida_lab_to_nwb/phillips_2025/spyglass/dj_local_conf.json
 
 # OS
 .DS_Store

@@ -9,7 +9,7 @@
 # 127.0.0.1:3307.
 #
 # Run inside the distro (optional argument: env name, default spyglass-uchida-lab-env):
-#   wsl -d Ubuntu-24.04 -- bash /mnt/c/<path to repo>/spyglass/bootstrap_wsl.sh
+#   wsl -d Ubuntu-24.04 -- bash /mnt/c/<path to repo>/src/uchida_lab_to_nwb/phillips_2025/spyglass/bootstrap_wsl.sh
 set -euo pipefail
 
 MINIFORGE=/opt/miniforge3
